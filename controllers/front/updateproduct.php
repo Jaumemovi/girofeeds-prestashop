@@ -218,6 +218,16 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
             $updated_fields[] = "active";
         }
 
+        // Update category
+        if (isset($data['category']) && !empty($data['category'])) {
+            $category_result = $this->handleCategoryUpdate($product, $data['category']);
+            if ($category_result['success']) {
+                $updated_fields = array_merge($updated_fields, $category_result['updated_fields']);
+            } else {
+                $errors = array_merge($errors, $category_result['errors']);
+            }
+        }
+
         // If there are validation errors, return them
         if (!empty($errors)) {
             return [
@@ -267,5 +277,214 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
                 'updated_fields' => $updated_fields
             ];
         }
+    }
+
+    /**
+     * Handle category update - create category if it doesn't exist
+     *
+     * @param Product $product
+     * @param mixed $category_data
+     * @return array
+     * @throws PrestaShopException
+     */
+    private function handleCategoryUpdate($product, $category_data)
+    {
+        $updated_fields = [];
+        $errors = [];
+
+        try {
+            // Handle different category input formats
+            if (is_numeric($category_data)) {
+                // Category ID provided
+                $id_category = (int) $category_data;
+                if ($this->categoryExists($id_category)) {
+                    $product->id_category_default = $id_category;
+                    $updated_fields[] = "id_category_default";
+                } else {
+                    $errors[] = "Category with ID {$id_category} does not exist";
+                }
+            } elseif (is_string($category_data)) {
+                // Category name provided - find or create
+                $category_name = trim($category_data);
+                if (!empty($category_name)) {
+                    $id_category = $this->findOrCreateCategory($category_name);
+                    if ($id_category) {
+                        $product->id_category_default = $id_category;
+                        $updated_fields[] = "id_category_default";
+                    } else {
+                        $errors[] = "Failed to create or find category: {$category_name}";
+                    }
+                } else {
+                    $errors[] = "Category name cannot be empty";
+                }
+            } elseif (is_array($category_data)) {
+                // Category path provided (e.g., ["Electronics", "Smartphones", "iPhone"])
+                $id_category = $this->findOrCreateCategoryPath($category_data);
+                if ($id_category) {
+                    $product->id_category_default = $id_category;
+                    $updated_fields[] = "id_category_default";
+                } else {
+                    $errors[] = "Failed to create category path: " . implode(' > ', $category_data);
+                }
+            } else {
+                $errors[] = "Invalid category format";
+            }
+
+            return [
+                'success' => empty($errors),
+                'updated_fields' => $updated_fields,
+                'errors' => $errors
+            ];
+
+        } catch (Exception $e) {
+            ChannableLogger::getInstance()->addLog(
+                'Error handling category update: ' . $e->getMessage(),
+                1,
+                $e,
+                ['category_data' => $category_data]
+            );
+
+            return [
+                'success' => false,
+                'updated_fields' => [],
+                'errors' => ['Category update failed: ' . $e->getMessage()]
+            ];
+        }
+    }
+
+    /**
+     * Check if category exists
+     *
+     * @param int $id_category
+     * @return bool
+     */
+    private function categoryExists($id_category)
+    {
+        return Validate::isLoadedObject(new Category($id_category));
+    }
+
+    /**
+     * Find existing category by name or create new one
+     *
+     * @param string $category_name
+     * @param int $id_parent
+     * @return int|false Category ID or false on failure
+     * @throws PrestaShopException
+     */
+    private function findOrCreateCategory($category_name, $id_parent = 2)
+    {
+        $id_lang = (int) Configuration::get('PS_LANG_DEFAULT');
+        
+        // First, try to find existing category
+        $sql = 'SELECT c.id_category 
+                FROM ' . _DB_PREFIX_ . 'category c
+                LEFT JOIN ' . _DB_PREFIX_ . 'category_lang cl ON (c.id_category = cl.id_category)
+                WHERE cl.name = "' . pSQL($category_name) . '" 
+                AND cl.id_lang = ' . (int) $id_lang . '
+                AND c.id_parent = ' . (int) $id_parent . '
+                AND c.active = 1';
+        
+        $existing_id = Db::getInstance()->getValue($sql);
+        
+        if ($existing_id) {
+            return (int) $existing_id;
+        }
+
+        // Category doesn't exist, create new one
+        return $this->createCategory($category_name, $id_parent);
+    }
+
+    /**
+     * Create a new category
+     *
+     * @param string $category_name
+     * @param int $id_parent
+     * @return int|false Category ID or false on failure
+     * @throws PrestaShopException
+     */
+    private function createCategory($category_name, $id_parent = 2)
+    {
+        try {
+            $category = new Category();
+            $category->id_parent = (int) $id_parent;
+            $category->active = 1;
+            $category->is_root_category = 0;
+            
+            // Set name for all languages
+            $languages = Language::getLanguages(false);
+            foreach ($languages as $language) {
+                $category->name[$language['id_lang']] = $category_name;
+                $category->link_rewrite[$language['id_lang']] = Tools::link_rewrite($category_name);
+                $category->description[$language['id_lang']] = '';
+                $category->meta_title[$language['id_lang']] = $category_name;
+                $category->meta_description[$language['id_lang']] = '';
+                $category->meta_keywords[$language['id_lang']] = '';
+            }
+
+            // Set position
+            $category->position = Category::getLastPosition($id_parent, $category->id);
+
+            if ($category->save()) {
+                ChannableLogger::getInstance()->addLog(
+                    'Created new category: ' . $category_name . ' (ID: ' . $category->id . ')',
+                    2,
+                    false,
+                    ['category_name' => $category_name, 'id_parent' => $id_parent]
+                );
+                
+                return (int) $category->id;
+            } else {
+                ChannableLogger::getInstance()->addLog(
+                    'Failed to save new category: ' . $category_name,
+                    1,
+                    false,
+                    ['category_name' => $category_name, 'id_parent' => $id_parent]
+                );
+                return false;
+            }
+
+        } catch (Exception $e) {
+            ChannableLogger::getInstance()->addLog(
+                'Exception creating category: ' . $e->getMessage(),
+                1,
+                $e,
+                ['category_name' => $category_name, 'id_parent' => $id_parent]
+            );
+            return false;
+        }
+    }
+
+    /**
+     * Find or create category path (nested categories)
+     *
+     * @param array $category_path
+     * @return int|false Final category ID or false on failure
+     * @throws PrestaShopException
+     */
+    private function findOrCreateCategoryPath($category_path)
+    {
+        if (!is_array($category_path) || empty($category_path)) {
+            return false;
+        }
+
+        $current_parent = 2; // Start from Home category
+        $final_category_id = false;
+
+        foreach ($category_path as $category_name) {
+            $category_name = trim($category_name);
+            if (empty($category_name)) {
+                continue;
+            }
+
+            $category_id = $this->findOrCreateCategory($category_name, $current_parent);
+            if (!$category_id) {
+                return false;
+            }
+
+            $current_parent = $category_id;
+            $final_category_id = $category_id;
+        }
+
+        return $final_category_id;
     }
 }
