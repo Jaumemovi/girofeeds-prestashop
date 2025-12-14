@@ -30,7 +30,7 @@ class Channable extends Module
     {
         $this->name = 'channable';
         $this->tab = 'market_place';
-        $this->version = '3.3.7';
+        $this->version = '3.3.8';
         $this->author = 'patworx multimedia GmbH';
         $this->need_instance = 1;
         $this->module_key = 'b69e52b06d7c14d37ac752c73823c0b3';
