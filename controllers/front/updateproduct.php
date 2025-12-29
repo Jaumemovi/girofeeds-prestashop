@@ -228,6 +228,16 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
             }
         }
 
+        // Update specific prices
+        if (isset($data['specific_price']) && is_array($data['specific_price'])) {
+            $specific_price_result = $this->handleSpecificPriceUpdate($product, $data['specific_price']);
+            if ($specific_price_result['success']) {
+                $updated_fields = array_merge($updated_fields, $specific_price_result['updated_fields']);
+            } else {
+                $errors = array_merge($errors, $specific_price_result['errors']);
+            }
+        }
+
         // If there are validation errors, return them
         if (!empty($errors)) {
             return [
@@ -486,5 +496,242 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
         }
 
         return $final_category_id;
+    }
+
+    /**
+     * Handle specific price update - replace existing specific prices
+     *
+     * @param Product $product
+     * @param array $specific_prices_data
+     * @return array
+     */
+    private function handleSpecificPriceUpdate($product, $specific_prices_data)
+    {
+        $updated_fields = [];
+        $errors = [];
+
+        try {
+            // Delete all existing specific prices for this product
+            $this->deleteExistingSpecificPrices($product->id);
+
+            // Create new specific prices from the provided data
+            if (empty($specific_prices_data)) {
+                // If empty array provided, just delete existing ones
+                $updated_fields[] = "specific_price (cleared)";
+
+                ChannableLogger::getInstance()->addLog(
+                    'Cleared all specific prices for product: ' . $product->id,
+                    2,
+                    false,
+                    ['product_id' => $product->id]
+                );
+
+                return [
+                    'success' => true,
+                    'updated_fields' => $updated_fields,
+                    'errors' => []
+                ];
+            }
+
+            // Create each specific price
+            $created_count = 0;
+            foreach ($specific_prices_data as $index => $sp_data) {
+                if (!is_array($sp_data)) {
+                    $errors[] = "Invalid specific price format at index {$index}";
+                    continue;
+                }
+
+                $result = $this->createSpecificPrice($product, $sp_data);
+                if ($result['success']) {
+                    $created_count++;
+                } else {
+                    $errors = array_merge($errors, $result['errors']);
+                }
+            }
+
+            if ($created_count > 0) {
+                $updated_fields[] = "specific_price (created {$created_count})";
+
+                ChannableLogger::getInstance()->addLog(
+                    'Updated specific prices for product: ' . $product->id,
+                    2,
+                    false,
+                    [
+                        'product_id' => $product->id,
+                        'created_count' => $created_count,
+                        'data' => $specific_prices_data
+                    ]
+                );
+            }
+
+            return [
+                'success' => empty($errors) || $created_count > 0,
+                'updated_fields' => $updated_fields,
+                'errors' => $errors
+            ];
+
+        } catch (Exception $e) {
+            ChannableLogger::getInstance()->addLog(
+                'Error handling specific price update: ' . $e->getMessage(),
+                1,
+                $e,
+                ['product_id' => $product->id, 'data' => $specific_prices_data]
+            );
+
+            return [
+                'success' => false,
+                'updated_fields' => [],
+                'errors' => ['Specific price update failed: ' . $e->getMessage()]
+            ];
+        }
+    }
+
+    /**
+     * Delete all existing specific prices for a product
+     *
+     * @param int $id_product
+     * @return bool
+     */
+    private function deleteExistingSpecificPrices($id_product)
+    {
+        try {
+            $sql = 'DELETE FROM ' . _DB_PREFIX_ . 'specific_price
+                    WHERE id_product = ' . (int) $id_product;
+
+            return Db::getInstance()->execute($sql);
+        } catch (Exception $e) {
+            ChannableLogger::getInstance()->addLog(
+                'Error deleting specific prices: ' . $e->getMessage(),
+                1,
+                $e,
+                ['product_id' => $id_product]
+            );
+            return false;
+        }
+    }
+
+    /**
+     * Create a specific price
+     *
+     * @param Product $product
+     * @param array $sp_data
+     * @return array
+     */
+    private function createSpecificPrice($product, $sp_data)
+    {
+        $errors = [];
+
+        try {
+            $specificPrice = new SpecificPrice();
+
+            // Required fields
+            $specificPrice->id_product = (int) $product->id;
+            $specificPrice->id_shop = (int) Context::getContext()->shop->id;
+            $specificPrice->id_currency = 0;
+            $specificPrice->id_country = 0;
+            $specificPrice->id_group = 0;
+            $specificPrice->id_customer = 0;
+            $specificPrice->id_product_attribute = 0;
+            $specificPrice->price = -1; // Use product price
+            $specificPrice->from_quantity = 1;
+            $specificPrice->from = '0000-00-00 00:00:00';
+            $specificPrice->to = '0000-00-00 00:00:00';
+
+            // Set reduction (discount)
+            if (isset($sp_data['reduction'])) {
+                $reduction = (float) $sp_data['reduction'];
+                if ($reduction >= 0 && $reduction <= 1) {
+                    $specificPrice->reduction = $reduction;
+                    $specificPrice->reduction_type = 'percentage';
+                } elseif ($reduction > 1) {
+                    // Assume it's an absolute amount
+                    $specificPrice->reduction = $reduction;
+                    $specificPrice->reduction_type = 'amount';
+                } else {
+                    $specificPrice->reduction = 0;
+                    $specificPrice->reduction_type = 'percentage';
+                }
+            } else {
+                $specificPrice->reduction = 0;
+                $specificPrice->reduction_type = 'percentage';
+            }
+
+            // Optional: reduction_tax (whether tax is applied to reduction)
+            if (isset($sp_data['reduction_tax'])) {
+                $specificPrice->reduction_tax = (int) $sp_data['reduction_tax'];
+            } else {
+                $specificPrice->reduction_tax = 1;
+            }
+
+            // Optional: fixed price
+            if (isset($sp_data['price']) && is_numeric($sp_data['price'])) {
+                $specificPrice->price = (float) $sp_data['price'];
+            }
+
+            // Optional: id_product_attribute (for combinations)
+            if (isset($sp_data['id_product_attribute']) && is_numeric($sp_data['id_product_attribute'])) {
+                $specificPrice->id_product_attribute = (int) $sp_data['id_product_attribute'];
+            }
+
+            // Optional: from_quantity
+            if (isset($sp_data['from_quantity']) && is_numeric($sp_data['from_quantity'])) {
+                $specificPrice->from_quantity = (int) $sp_data['from_quantity'];
+            }
+
+            // Optional: id_group
+            if (isset($sp_data['id_group']) && is_numeric($sp_data['id_group'])) {
+                $specificPrice->id_group = (int) $sp_data['id_group'];
+            }
+
+            // Optional: id_customer
+            if (isset($sp_data['id_customer']) && is_numeric($sp_data['id_customer'])) {
+                $specificPrice->id_customer = (int) $sp_data['id_customer'];
+            }
+
+            // Optional: id_country
+            if (isset($sp_data['id_country']) && is_numeric($sp_data['id_country'])) {
+                $specificPrice->id_country = (int) $sp_data['id_country'];
+            }
+
+            // Optional: id_currency
+            if (isset($sp_data['id_currency']) && is_numeric($sp_data['id_currency'])) {
+                $specificPrice->id_currency = (int) $sp_data['id_currency'];
+            }
+
+            // Optional: date range
+            if (isset($sp_data['from']) && !empty($sp_data['from'])) {
+                $specificPrice->from = pSQL($sp_data['from']);
+            }
+            if (isset($sp_data['to']) && !empty($sp_data['to'])) {
+                $specificPrice->to = pSQL($sp_data['to']);
+            }
+
+            // Save the specific price
+            if ($specificPrice->add()) {
+                return [
+                    'success' => true,
+                    'errors' => []
+                ];
+            } else {
+                $errors[] = "Failed to save specific price";
+                return [
+                    'success' => false,
+                    'errors' => $errors
+                ];
+            }
+
+        } catch (Exception $e) {
+            ChannableLogger::getInstance()->addLog(
+                'Exception creating specific price: ' . $e->getMessage(),
+                1,
+                $e,
+                ['product_id' => $product->id, 'sp_data' => $sp_data]
+            );
+
+            return [
+                'success' => false,
+                'errors' => ['Exception: ' . $e->getMessage()]
+            ];
+        }
     }
 }

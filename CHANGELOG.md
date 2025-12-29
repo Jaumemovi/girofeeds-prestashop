@@ -2,7 +2,8 @@
 
 ### 3.3.8
 
-- Version update
+- Added specific_price update functionality in product update endpoint
+- Ability to replace all specific prices by sending specific_price array
 
 ### 3.3.7
 
