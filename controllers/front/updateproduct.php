@@ -639,20 +639,15 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
 
             // Set reduction (discount)
             if (isset($sp_data['reduction'])) {
-                $reduction = (float) $sp_data['reduction'];
-                if ($reduction >= 0 && $reduction <= 1) {
-                    $specificPrice->reduction = $reduction;
-                    $specificPrice->reduction_type = 'percentage';
-                } elseif ($reduction > 1) {
-                    // Assume it's an absolute amount
-                    $specificPrice->reduction = $reduction;
-                    $specificPrice->reduction_type = 'amount';
-                } else {
-                    $specificPrice->reduction = 0;
-                    $specificPrice->reduction_type = 'percentage';
-                }
+                $specificPrice->reduction = (float) $sp_data['reduction'];
             } else {
                 $specificPrice->reduction = 0;
+            }
+
+            // Set reduction type (default to percentage)
+            if (isset($sp_data['reduction_type']) && in_array($sp_data['reduction_type'], ['percentage', 'amount'])) {
+                $specificPrice->reduction_type = $sp_data['reduction_type'];
+            } else {
                 $specificPrice->reduction_type = 'percentage';
             }
 

@@ -4,6 +4,7 @@
 
 - Added specific_price update functionality in product update endpoint
 - Ability to replace all specific prices by sending specific_price array
+- Default reduction_type is 'percentage' if not specified
 
 ### 3.3.7
 
