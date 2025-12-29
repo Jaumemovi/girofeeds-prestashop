@@ -3,7 +3,8 @@ const path = require('path');
 const archiver = require('archiver');
 
 const moduleName = 'channable';
-const version = '3.3.8';
+const packageJson = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
+const version = packageJson.version;
 const outputFileName = `${moduleName}-v${version}.zip`;
 
 if (fs.existsSync(outputFileName)) {
@@ -47,7 +48,7 @@ const addFilesToArchive = (dir, prefix = '') => {
   const files = fs.readdirSync(dir);
 
   files.forEach(file => {
-    if (filesToExclude.includes(file)) {
+    if (filesToExclude.includes(file) || file.endsWith('.zip')) {
       return;
     }
 

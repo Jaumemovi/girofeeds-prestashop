@@ -1,5 +1,11 @@
 # Changelog
 
+### 3.3.9
+
+- Added specific_price update functionality in product update endpoint
+- Ability to replace all specific prices by sending specific_price array
+- Category string with ">" separator now interpreted as category hierarchy (e.g., "Home > Category > Subcategory")
+
 ### 3.3.8
 
 - Default reduction_type is 'percentage' if not specified
