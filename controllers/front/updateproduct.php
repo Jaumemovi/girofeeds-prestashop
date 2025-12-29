@@ -314,18 +314,31 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
                     $errors[] = "Category with ID {$id_category} does not exist";
                 }
             } elseif (is_string($category_data)) {
-                // Category name provided - find or create
-                $category_name = trim($category_data);
-                if (!empty($category_name)) {
-                    $id_category = $this->findOrCreateCategory($category_name);
+                // Check if it's a category path with ">" separator
+                if (strpos($category_data, '>') !== false) {
+                    // Split by ">" and treat as category path
+                    $category_path = array_map('trim', explode('>', $category_data));
+                    $id_category = $this->findOrCreateCategoryPath($category_path);
                     if ($id_category) {
                         $product->id_category_default = $id_category;
                         $updated_fields[] = "id_category_default";
                     } else {
-                        $errors[] = "Failed to create or find category: {$category_name}";
+                        $errors[] = "Failed to create category path: {$category_data}";
                     }
                 } else {
-                    $errors[] = "Category name cannot be empty";
+                    // Simple category name provided - find or create
+                    $category_name = trim($category_data);
+                    if (!empty($category_name)) {
+                        $id_category = $this->findOrCreateCategory($category_name);
+                        if ($id_category) {
+                            $product->id_category_default = $id_category;
+                            $updated_fields[] = "id_category_default";
+                        } else {
+                            $errors[] = "Failed to create or find category: {$category_name}";
+                        }
+                    } else {
+                        $errors[] = "Category name cannot be empty";
+                    }
                 }
             } elseif (is_array($category_data)) {
                 // Category path provided (e.g., ["Electronics", "Smartphones", "iPhone"])
