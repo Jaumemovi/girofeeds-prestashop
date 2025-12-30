@@ -196,12 +196,32 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
                 continue;
             }
 
-            if ($field_name === 'stock') {
+            if ($field_name === 'stock' || $field_name === 'quantity') {
                 $stock_result = $this->handleStockUpdate($product, $value, $id_product_attribute);
                 if ($stock_result['success']) {
                     $updated_fields = array_merge($updated_fields, $stock_result['updated_fields']);
                 } else {
                     $errors = array_merge($errors, $stock_result['errors']);
+                }
+                continue;
+            }
+
+            if ($field_name === 'specifications' || $field_name === 'features') {
+                $specs_result = $this->handleSpecificationsUpdate($product, $value);
+                if ($specs_result['success']) {
+                    $updated_fields = array_merge($updated_fields, $specs_result['updated_fields']);
+                } else {
+                    $errors = array_merge($errors, $specs_result['errors']);
+                }
+                continue;
+            }
+
+            if ($field_name === 'product_supplier_reference' || $field_name === 'supplier_reference') {
+                $supplier_ref_result = $this->handleSupplierReferenceUpdate($product, $value);
+                if ($supplier_ref_result['success']) {
+                    $updated_fields = array_merge($updated_fields, $supplier_ref_result['updated_fields']);
+                } else {
+                    $errors = array_merge($errors, $supplier_ref_result['errors']);
                 }
                 continue;
             }
@@ -297,7 +317,9 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
             'name' => ['tablename' => 'product_lang', 'field_in_db' => 'name'],
             'title' => ['tablename' => 'product_lang', 'field_in_db' => 'name'],
             'description' => ['tablename' => 'product_lang', 'field_in_db' => 'description'],
+            'description_html' => ['tablename' => 'product_lang', 'field_in_db' => 'description'],
             'description_short' => ['tablename' => 'product_lang', 'field_in_db' => 'description_short'],
+            'short_description_html' => ['tablename' => 'product_lang', 'field_in_db' => 'description_short'],
             'meta_title' => ['tablename' => 'product_lang', 'field_in_db' => 'meta_title'],
             'meta_description' => ['tablename' => 'product_lang', 'field_in_db' => 'meta_description'],
             'meta_keywords' => ['tablename' => 'product_lang', 'field_in_db' => 'meta_keywords'],
@@ -310,15 +332,21 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
             'wholesale_price' => ['tablename' => 'product', 'field_in_db' => 'wholesale_price'],
             'ecotax' => ['tablename' => 'product', 'field_in_db' => 'ecotax'],
             'weight' => ['tablename' => 'product', 'field_in_db' => 'weight'],
+            'package_weight' => ['tablename' => 'product', 'field_in_db' => 'weight'],
             'height' => ['tablename' => 'product', 'field_in_db' => 'height'],
+            'package_height' => ['tablename' => 'product', 'field_in_db' => 'height'],
             'width' => ['tablename' => 'product', 'field_in_db' => 'width'],
+            'package_width' => ['tablename' => 'product', 'field_in_db' => 'width'],
             'depth' => ['tablename' => 'product', 'field_in_db' => 'depth'],
+            'package_depth' => ['tablename' => 'product', 'field_in_db' => 'depth'],
             'reference' => ['tablename' => 'product', 'field_in_db' => 'reference'],
             'ean13' => ['tablename' => 'product', 'field_in_db' => 'ean13'],
+            'gtin' => ['tablename' => 'product', 'field_in_db' => 'ean13'],
             'upc' => ['tablename' => 'product', 'field_in_db' => 'upc'],
             'mpn' => ['tablename' => 'product', 'field_in_db' => 'mpn'],
             'isbn' => ['tablename' => 'product', 'field_in_db' => 'isbn'],
             'active' => ['tablename' => 'product', 'field_in_db' => 'active'],
+            'visible' => ['tablename' => 'product', 'field_in_db' => 'active'],
             'visibility' => ['tablename' => 'product', 'field_in_db' => 'visibility'],
             'condition' => ['tablename' => 'product', 'field_in_db' => 'condition'],
             'on_sale' => ['tablename' => 'product', 'field_in_db' => 'on_sale'],
@@ -1594,6 +1622,258 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
                 'success' => false,
                 'updated_fields' => [],
                 'errors' => ['Stock update failed: ' . $e->getMessage()]
+            ];
+        }
+    }
+
+    private function handleSpecificationsUpdate($product, $specifications)
+    {
+        $updated_fields = [];
+        $errors = [];
+
+        try {
+            if (!is_array($specifications)) {
+                $specifications = json_decode($specifications, true);
+                if (!is_array($specifications)) {
+                    return [
+                        'success' => false,
+                        'updated_fields' => [],
+                        'errors' => ['Specifications must be an array or valid JSON']
+                    ];
+                }
+            }
+
+            $id_lang = (int) Context::getContext()->language->id;
+
+            foreach ($specifications as $feature_name => $feature_value) {
+                if (empty($feature_name) || $feature_value === null) {
+                    continue;
+                }
+
+                $id_feature = $this->findOrCreateFeature($feature_name);
+                if (!$id_feature) {
+                    $errors[] = "Failed to find/create feature: {$feature_name}";
+                    continue;
+                }
+
+                $id_feature_value = $this->findOrCreateFeatureValue($id_feature, $feature_value);
+                if (!$id_feature_value) {
+                    $errors[] = "Failed to find/create feature value for {$feature_name}: {$feature_value}";
+                    continue;
+                }
+
+                $this->removeProductFeature($product->id, $id_feature);
+
+                $result = Db::getInstance()->insert('feature_product', [
+                    'id_feature' => (int) $id_feature,
+                    'id_product' => (int) $product->id,
+                    'id_feature_value' => (int) $id_feature_value
+                ]);
+
+                if ($result) {
+                    $updated_fields[] = "specification[{$feature_name}]";
+                } else {
+                    $errors[] = "Failed to assign feature {$feature_name} to product";
+                }
+            }
+
+            return [
+                'success' => count($updated_fields) > 0 || empty($specifications),
+                'updated_fields' => $updated_fields,
+                'errors' => $errors
+            ];
+
+        } catch (Exception $e) {
+            ChannableLogger::getInstance()->addLog(
+                'Error handling specifications update: ' . $e->getMessage(),
+                1,
+                $e,
+                ['product_id' => $product->id]
+            );
+
+            return [
+                'success' => false,
+                'updated_fields' => $updated_fields,
+                'errors' => array_merge($errors, ['Specifications update failed: ' . $e->getMessage()])
+            ];
+        }
+    }
+
+    private function findOrCreateFeature($feature_name)
+    {
+        $id_lang = (int) Context::getContext()->language->id;
+
+        $sql = 'SELECT f.id_feature FROM ' . _DB_PREFIX_ . 'feature f
+                INNER JOIN ' . _DB_PREFIX_ . 'feature_lang fl ON (f.id_feature = fl.id_feature)
+                WHERE fl.name = "' . pSQL($feature_name) . '" AND fl.id_lang = ' . $id_lang;
+
+        $existing_id = Db::getInstance()->getValue($sql);
+
+        if ($existing_id) {
+            return (int) $existing_id;
+        }
+
+        return $this->createFeature($feature_name);
+    }
+
+    private function createFeature($feature_name)
+    {
+        try {
+            $feature = new Feature();
+
+            $languages = Language::getLanguages(false);
+            foreach ($languages as $language) {
+                $feature->name[$language['id_lang']] = $feature_name;
+            }
+
+            if ($feature->add()) {
+                ChannableLogger::getInstance()->addLog(
+                    'Created new feature: ' . $feature_name . ' (ID: ' . $feature->id . ')',
+                    2,
+                    false,
+                    ['feature_name' => $feature_name]
+                );
+
+                return (int) $feature->id;
+            }
+
+            return false;
+
+        } catch (Exception $e) {
+            ChannableLogger::getInstance()->addLog(
+                'Exception creating feature: ' . $e->getMessage(),
+                1,
+                $e,
+                ['feature_name' => $feature_name]
+            );
+            return false;
+        }
+    }
+
+    private function findOrCreateFeatureValue($id_feature, $value)
+    {
+        $id_lang = (int) Context::getContext()->language->id;
+        $value_str = is_array($value) ? json_encode($value) : (string) $value;
+
+        $sql = 'SELECT fv.id_feature_value FROM ' . _DB_PREFIX_ . 'feature_value fv
+                INNER JOIN ' . _DB_PREFIX_ . 'feature_value_lang fvl ON (fv.id_feature_value = fvl.id_feature_value)
+                WHERE fv.id_feature = ' . (int) $id_feature . '
+                AND fvl.value = "' . pSQL($value_str) . '"
+                AND fvl.id_lang = ' . $id_lang;
+
+        $existing_id = Db::getInstance()->getValue($sql);
+
+        if ($existing_id) {
+            return (int) $existing_id;
+        }
+
+        return $this->createFeatureValue($id_feature, $value_str);
+    }
+
+    private function createFeatureValue($id_feature, $value)
+    {
+        try {
+            $featureValue = new FeatureValue();
+            $featureValue->id_feature = (int) $id_feature;
+            $featureValue->custom = 0;
+
+            $languages = Language::getLanguages(false);
+            foreach ($languages as $language) {
+                $featureValue->value[$language['id_lang']] = $value;
+            }
+
+            if ($featureValue->add()) {
+                return (int) $featureValue->id;
+            }
+
+            return false;
+
+        } catch (Exception $e) {
+            ChannableLogger::getInstance()->addLog(
+                'Exception creating feature value: ' . $e->getMessage(),
+                1,
+                $e,
+                ['id_feature' => $id_feature, 'value' => $value]
+            );
+            return false;
+        }
+    }
+
+    private function removeProductFeature($id_product, $id_feature)
+    {
+        return Db::getInstance()->delete(
+            'feature_product',
+            'id_product = ' . (int) $id_product . ' AND id_feature = ' . (int) $id_feature
+        );
+    }
+
+    private function handleSupplierReferenceUpdate($product, $reference_value)
+    {
+        $updated_fields = [];
+        $errors = [];
+
+        try {
+            if (empty($product->id_supplier) || $product->id_supplier == 0) {
+                return [
+                    'success' => false,
+                    'updated_fields' => [],
+                    'errors' => ['Product has no supplier assigned. Set supplier first.']
+                ];
+            }
+
+            $id_product_attribute = 0;
+
+            $existing = Db::getInstance()->getRow(
+                'SELECT id_product_supplier FROM ' . _DB_PREFIX_ . 'product_supplier
+                WHERE id_product = ' . (int) $product->id . '
+                AND id_product_attribute = ' . (int) $id_product_attribute . '
+                AND id_supplier = ' . (int) $product->id_supplier
+            );
+
+            if ($existing) {
+                $result = Db::getInstance()->update(
+                    'product_supplier',
+                    ['product_supplier_reference' => pSQL($reference_value)],
+                    'id_product_supplier = ' . (int) $existing['id_product_supplier']
+                );
+            } else {
+                $result = Db::getInstance()->insert('product_supplier', [
+                    'id_product' => (int) $product->id,
+                    'id_product_attribute' => (int) $id_product_attribute,
+                    'id_supplier' => (int) $product->id_supplier,
+                    'product_supplier_reference' => pSQL($reference_value),
+                    'product_supplier_price_te' => 0,
+                    'id_currency' => (int) Configuration::get('PS_CURRENCY_DEFAULT')
+                ]);
+            }
+
+            if ($result) {
+                $updated_fields[] = "product_supplier_reference";
+                return [
+                    'success' => true,
+                    'updated_fields' => $updated_fields,
+                    'errors' => []
+                ];
+            } else {
+                return [
+                    'success' => false,
+                    'updated_fields' => [],
+                    'errors' => ['Failed to update supplier reference']
+                ];
+            }
+
+        } catch (Exception $e) {
+            ChannableLogger::getInstance()->addLog(
+                'Error handling supplier reference update: ' . $e->getMessage(),
+                1,
+                $e,
+                ['product_id' => $product->id, 'reference' => $reference_value]
+            );
+
+            return [
+                'success' => false,
+                'updated_fields' => [],
+                'errors' => ['Supplier reference update failed: ' . $e->getMessage()]
             ];
         }
     }

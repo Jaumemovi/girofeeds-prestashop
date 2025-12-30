@@ -9,10 +9,19 @@
 - Support for all PrestaShop product tables: product, product_shop, product_lang, product_attribute, product_attribute_shop
 - Multi-language field support with array format (e.g., {"1": "value_en", "2": "value_de"})
 - Product attribute/combination field updates with id_product_attribute parameter
-- Stock quantity updates via StockAvailable
+- Stock quantity updates via StockAvailable (stock or quantity field)
 - Brand field support: find existing or create new manufacturer automatically
 - Supplier field support: find existing or create new supplier automatically
-- Added "title" as alias for "name" field
+- Specifications/features update: find existing or create new features and values
+- Product supplier reference update support
+- Field aliases for feed compatibility:
+  - title -> name
+  - gtin -> ean13
+  - description_html -> description
+  - short_description_html -> description_short
+  - package_weight/height/width/depth -> weight/height/width/depth
+  - visible -> active
+  - quantity -> stock
 
 ### 3.3.8
 
