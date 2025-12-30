@@ -1,5 +1,9 @@
 # Changelog
 
+### 3.3.10
+
+- Version consolidation release
+
 ### 3.3.9
 
 - Added specific_price update functionality in product update endpoint
