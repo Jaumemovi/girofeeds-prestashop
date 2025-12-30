@@ -10,6 +10,9 @@
 - Multi-language field support with array format (e.g., {"1": "value_en", "2": "value_de"})
 - Product attribute/combination field updates with id_product_attribute parameter
 - Stock quantity updates via StockAvailable
+- Brand field support: find existing or create new manufacturer automatically
+- Supplier field support: find existing or create new supplier automatically
+- Added "title" as alias for "name" field
 
 ### 3.3.8
 

@@ -176,6 +176,36 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
                 continue;
             }
 
+            if ($field_name === 'brand') {
+                $brand_result = $this->handleBrandUpdate($product, $value);
+                if ($brand_result['success']) {
+                    $updated_fields = array_merge($updated_fields, $brand_result['updated_fields']);
+                } else {
+                    $errors = array_merge($errors, $brand_result['errors']);
+                }
+                continue;
+            }
+
+            if ($field_name === 'supplier') {
+                $supplier_result = $this->handleSupplierUpdate($product, $value);
+                if ($supplier_result['success']) {
+                    $updated_fields = array_merge($updated_fields, $supplier_result['updated_fields']);
+                } else {
+                    $errors = array_merge($errors, $supplier_result['errors']);
+                }
+                continue;
+            }
+
+            if ($field_name === 'stock') {
+                $stock_result = $this->handleStockUpdate($product, $value, $id_product_attribute);
+                if ($stock_result['success']) {
+                    $updated_fields = array_merge($updated_fields, $stock_result['updated_fields']);
+                } else {
+                    $errors = array_merge($errors, $stock_result['errors']);
+                }
+                continue;
+            }
+
             $fieldInfo = $this->getFieldInfo($field_name, $feedFieldsConfig);
 
             if ($fieldInfo === false) {
@@ -265,6 +295,7 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
 
         $defaultFields = [
             'name' => ['tablename' => 'product_lang', 'field_in_db' => 'name'],
+            'title' => ['tablename' => 'product_lang', 'field_in_db' => 'name'],
             'description' => ['tablename' => 'product_lang', 'field_in_db' => 'description'],
             'description_short' => ['tablename' => 'product_lang', 'field_in_db' => 'description_short'],
             'meta_title' => ['tablename' => 'product_lang', 'field_in_db' => 'meta_title'],
@@ -1238,6 +1269,331 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
             return [
                 'success' => false,
                 'errors' => ['Exception: ' . $e->getMessage()]
+            ];
+        }
+    }
+
+    private function handleBrandUpdate($product, $brand_value)
+    {
+        $updated_fields = [];
+        $errors = [];
+
+        try {
+            if (empty($brand_value)) {
+                $product->id_manufacturer = 0;
+                $updated_fields[] = "id_manufacturer (cleared)";
+                return [
+                    'success' => true,
+                    'updated_fields' => $updated_fields,
+                    'errors' => []
+                ];
+            }
+
+            if (is_numeric($brand_value)) {
+                $id_manufacturer = (int) $brand_value;
+                if (Manufacturer::manufacturerExists($id_manufacturer)) {
+                    $product->id_manufacturer = $id_manufacturer;
+                    $updated_fields[] = "id_manufacturer";
+                    return [
+                        'success' => true,
+                        'updated_fields' => $updated_fields,
+                        'errors' => []
+                    ];
+                } else {
+                    $errors[] = "Manufacturer with ID {$id_manufacturer} does not exist";
+                    return [
+                        'success' => false,
+                        'updated_fields' => [],
+                        'errors' => $errors
+                    ];
+                }
+            }
+
+            $brand_name = trim($brand_value);
+            $id_manufacturer = $this->findOrCreateManufacturer($brand_name);
+
+            if ($id_manufacturer) {
+                $product->id_manufacturer = $id_manufacturer;
+                $updated_fields[] = "id_manufacturer (brand: {$brand_name})";
+                return [
+                    'success' => true,
+                    'updated_fields' => $updated_fields,
+                    'errors' => []
+                ];
+            } else {
+                $errors[] = "Failed to find or create manufacturer: {$brand_name}";
+                return [
+                    'success' => false,
+                    'updated_fields' => [],
+                    'errors' => $errors
+                ];
+            }
+
+        } catch (Exception $e) {
+            ChannableLogger::getInstance()->addLog(
+                'Error handling brand update: ' . $e->getMessage(),
+                1,
+                $e,
+                ['brand_value' => $brand_value]
+            );
+
+            return [
+                'success' => false,
+                'updated_fields' => [],
+                'errors' => ['Brand update failed: ' . $e->getMessage()]
+            ];
+        }
+    }
+
+    private function findOrCreateManufacturer($manufacturer_name)
+    {
+        $sql = 'SELECT id_manufacturer FROM ' . _DB_PREFIX_ . 'manufacturer
+                WHERE name = "' . pSQL($manufacturer_name) . '"';
+
+        $existing_id = Db::getInstance()->getValue($sql);
+
+        if ($existing_id) {
+            return (int) $existing_id;
+        }
+
+        return $this->createManufacturer($manufacturer_name);
+    }
+
+    private function createManufacturer($manufacturer_name)
+    {
+        try {
+            $manufacturer = new Manufacturer();
+            $manufacturer->name = pSQL($manufacturer_name);
+            $manufacturer->active = 1;
+
+            $languages = Language::getLanguages(false);
+            foreach ($languages as $language) {
+                $manufacturer->description[$language['id_lang']] = '';
+                $manufacturer->short_description[$language['id_lang']] = '';
+                $manufacturer->meta_title[$language['id_lang']] = $manufacturer_name;
+                $manufacturer->meta_description[$language['id_lang']] = '';
+                $manufacturer->meta_keywords[$language['id_lang']] = '';
+            }
+
+            if ($manufacturer->add()) {
+                $manufacturer->associateTo(Context::getContext()->shop->id);
+
+                ChannableLogger::getInstance()->addLog(
+                    'Created new manufacturer: ' . $manufacturer_name . ' (ID: ' . $manufacturer->id . ')',
+                    2,
+                    false,
+                    ['manufacturer_name' => $manufacturer_name]
+                );
+
+                return (int) $manufacturer->id;
+            } else {
+                ChannableLogger::getInstance()->addLog(
+                    'Failed to save new manufacturer: ' . $manufacturer_name,
+                    1,
+                    false,
+                    ['manufacturer_name' => $manufacturer_name]
+                );
+                return false;
+            }
+
+        } catch (Exception $e) {
+            ChannableLogger::getInstance()->addLog(
+                'Exception creating manufacturer: ' . $e->getMessage(),
+                1,
+                $e,
+                ['manufacturer_name' => $manufacturer_name]
+            );
+            return false;
+        }
+    }
+
+    private function handleSupplierUpdate($product, $supplier_value)
+    {
+        $updated_fields = [];
+        $errors = [];
+
+        try {
+            if (empty($supplier_value)) {
+                $product->id_supplier = 0;
+                $updated_fields[] = "id_supplier (cleared)";
+                return [
+                    'success' => true,
+                    'updated_fields' => $updated_fields,
+                    'errors' => []
+                ];
+            }
+
+            if (is_numeric($supplier_value)) {
+                $id_supplier = (int) $supplier_value;
+                if (Supplier::supplierExists($id_supplier)) {
+                    $product->id_supplier = $id_supplier;
+                    $updated_fields[] = "id_supplier";
+                    return [
+                        'success' => true,
+                        'updated_fields' => $updated_fields,
+                        'errors' => []
+                    ];
+                } else {
+                    $errors[] = "Supplier with ID {$id_supplier} does not exist";
+                    return [
+                        'success' => false,
+                        'updated_fields' => [],
+                        'errors' => $errors
+                    ];
+                }
+            }
+
+            $supplier_name = trim($supplier_value);
+            $id_supplier = $this->findOrCreateSupplier($supplier_name);
+
+            if ($id_supplier) {
+                $product->id_supplier = $id_supplier;
+                $updated_fields[] = "id_supplier (supplier: {$supplier_name})";
+                return [
+                    'success' => true,
+                    'updated_fields' => $updated_fields,
+                    'errors' => []
+                ];
+            } else {
+                $errors[] = "Failed to find or create supplier: {$supplier_name}";
+                return [
+                    'success' => false,
+                    'updated_fields' => [],
+                    'errors' => $errors
+                ];
+            }
+
+        } catch (Exception $e) {
+            ChannableLogger::getInstance()->addLog(
+                'Error handling supplier update: ' . $e->getMessage(),
+                1,
+                $e,
+                ['supplier_value' => $supplier_value]
+            );
+
+            return [
+                'success' => false,
+                'updated_fields' => [],
+                'errors' => ['Supplier update failed: ' . $e->getMessage()]
+            ];
+        }
+    }
+
+    private function findOrCreateSupplier($supplier_name)
+    {
+        $sql = 'SELECT id_supplier FROM ' . _DB_PREFIX_ . 'supplier
+                WHERE name = "' . pSQL($supplier_name) . '"';
+
+        $existing_id = Db::getInstance()->getValue($sql);
+
+        if ($existing_id) {
+            return (int) $existing_id;
+        }
+
+        return $this->createSupplier($supplier_name);
+    }
+
+    private function createSupplier($supplier_name)
+    {
+        try {
+            $supplier = new Supplier();
+            $supplier->name = pSQL($supplier_name);
+            $supplier->active = 1;
+
+            $languages = Language::getLanguages(false);
+            foreach ($languages as $language) {
+                $supplier->description[$language['id_lang']] = '';
+                $supplier->meta_title[$language['id_lang']] = $supplier_name;
+                $supplier->meta_description[$language['id_lang']] = '';
+                $supplier->meta_keywords[$language['id_lang']] = '';
+            }
+
+            if ($supplier->add()) {
+                $supplier->associateTo(Context::getContext()->shop->id);
+
+                ChannableLogger::getInstance()->addLog(
+                    'Created new supplier: ' . $supplier_name . ' (ID: ' . $supplier->id . ')',
+                    2,
+                    false,
+                    ['supplier_name' => $supplier_name]
+                );
+
+                return (int) $supplier->id;
+            } else {
+                ChannableLogger::getInstance()->addLog(
+                    'Failed to save new supplier: ' . $supplier_name,
+                    1,
+                    false,
+                    ['supplier_name' => $supplier_name]
+                );
+                return false;
+            }
+
+        } catch (Exception $e) {
+            ChannableLogger::getInstance()->addLog(
+                'Exception creating supplier: ' . $e->getMessage(),
+                1,
+                $e,
+                ['supplier_name' => $supplier_name]
+            );
+            return false;
+        }
+    }
+
+    private function handleStockUpdate($product, $stock_value, $id_product_attribute = 0)
+    {
+        $updated_fields = [];
+        $errors = [];
+
+        try {
+            if (is_array($stock_value)) {
+                foreach ($stock_value as $attr_id => $attr_quantity) {
+                    StockAvailable::setQuantity($product->id, (int) $attr_id, (int) $attr_quantity);
+                    $updated_fields[] = "stock[{$attr_id}]";
+                }
+                return [
+                    'success' => true,
+                    'updated_fields' => $updated_fields,
+                    'errors' => []
+                ];
+            }
+
+            if (!is_numeric($stock_value)) {
+                return [
+                    'success' => false,
+                    'updated_fields' => [],
+                    'errors' => ['Invalid stock value: must be numeric']
+                ];
+            }
+
+            $quantity = (int) $stock_value;
+
+            if ($id_product_attribute > 0) {
+                StockAvailable::setQuantity($product->id, $id_product_attribute, $quantity);
+                $updated_fields[] = "stock[{$id_product_attribute}]";
+            } else {
+                StockAvailable::setQuantity($product->id, 0, $quantity);
+                $updated_fields[] = "stock";
+            }
+
+            return [
+                'success' => true,
+                'updated_fields' => $updated_fields,
+                'errors' => []
+            ];
+
+        } catch (Exception $e) {
+            ChannableLogger::getInstance()->addLog(
+                'Error handling stock update: ' . $e->getMessage(),
+                1,
+                $e,
+                ['product_id' => $product->id, 'stock_value' => $stock_value]
+            );
+
+            return [
+                'success' => false,
+                'updated_fields' => [],
+                'errors' => ['Stock update failed: ' . $e->getMessage()]
             ];
         }
     }
