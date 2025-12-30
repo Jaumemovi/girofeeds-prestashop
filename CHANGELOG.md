@@ -5,6 +5,11 @@
 - Added specific_price update functionality in product update endpoint
 - Ability to replace all specific prices by sending specific_price array
 - Category string with ">" separator now interpreted as category hierarchy (e.g., "Home > Category > Subcategory")
+- Dynamic field updates based on "Expert: Additional fields in feed" configuration
+- Support for all PrestaShop product tables: product, product_shop, product_lang, product_attribute, product_attribute_shop
+- Multi-language field support with array format (e.g., {"1": "value_en", "2": "value_de"})
+- Product attribute/combination field updates with id_product_attribute parameter
+- Stock quantity updates via StockAvailable
 
 ### 3.3.8
 
