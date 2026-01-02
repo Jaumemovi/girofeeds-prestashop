@@ -2048,15 +2048,30 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
     private function addImageToProduct($id_product, $image_path)
     {
         try {
+            $images = Image::getImages((int) Context::getContext()->language->id, (int) $id_product);
+
+            if (!empty($images)) {
+                foreach ($images as $existing_image) {
+                    if ($existing_image['cover'] == 1) {
+                        Db::getInstance()->update(
+                            'image',
+                            ['cover' => 0],
+                            'id_image = ' . (int) $existing_image['id_image']
+                        );
+
+                        Db::getInstance()->update(
+                            'image_shop',
+                            ['cover' => 0],
+                            'id_image = ' . (int) $existing_image['id_image']
+                        );
+                    }
+                }
+            }
+
             $image = new Image();
             $image->id_product = (int) $id_product;
-            $image->position = Image::getHighestPosition($id_product) + 1;
-            $image->cover = false;
-
-            $images = Image::getImages((int) Context::getContext()->language->id, (int) $id_product);
-            if (empty($images)) {
-                $image->cover = true;
-            }
+            $image->position = 1;
+            $image->cover = true;
 
             if ($image->add()) {
                 $new_path = $image->getPathForCreation();
@@ -2076,6 +2091,16 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
                     )) {
                         $image->delete();
                         return false;
+                    }
+                }
+
+                if (!empty($images)) {
+                    foreach ($images as $key => $existing_image) {
+                        Db::getInstance()->update(
+                            'image',
+                            ['position' => (int) ($key + 2)],
+                            'id_image = ' . (int) $existing_image['id_image']
+                        );
                     }
                 }
 
