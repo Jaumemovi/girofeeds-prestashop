@@ -1,5 +1,14 @@
 # Changelog
 
+### 3.3.11
+
+- Added Firebase Storage image download support in product update endpoint
+- Images from Firebase Storage (firebasestorage.googleapis.com, flender, girofieeds) are automatically downloaded and added to PrestaShop
+- Downloaded images are set as main product image, existing images become additional images
+- Support for image fields: image, image_url, image_link
+- Automatic image format detection (jpg, png, gif, webp)
+- All product image thumbnails are generated automatically
+
 ### 3.3.10
 
 - Version consolidation release
