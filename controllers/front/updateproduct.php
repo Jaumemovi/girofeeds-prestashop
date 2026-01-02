@@ -226,6 +226,16 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
                 continue;
             }
 
+            if ($field_name === 'image' || $field_name === 'image_url' || $field_name === 'image_link') {
+                $image_result = $this->handleImageUpdate($product, $value);
+                if ($image_result['success']) {
+                    $updated_fields = array_merge($updated_fields, $image_result['updated_fields']);
+                } else {
+                    $errors = array_merge($errors, $image_result['errors']);
+                }
+                continue;
+            }
+
             $fieldInfo = $this->getFieldInfo($field_name, $feedFieldsConfig);
 
             if ($fieldInfo === false) {
@@ -1875,6 +1885,213 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
                 'updated_fields' => [],
                 'errors' => ['Supplier reference update failed: ' . $e->getMessage()]
             ];
+        }
+    }
+
+    private function handleImageUpdate($product, $image_url)
+    {
+        $updated_fields = [];
+        $errors = [];
+
+        try {
+            if (empty($image_url) || !is_string($image_url)) {
+                return [
+                    'success' => false,
+                    'updated_fields' => [],
+                    'errors' => ['Invalid image URL']
+                ];
+            }
+
+            if (!$this->isFirebaseStorageUrl($image_url)) {
+                return [
+                    'success' => false,
+                    'updated_fields' => [],
+                    'errors' => ['Image URL is not from Firebase Storage']
+                ];
+            }
+
+            $image_content = $this->downloadImageFromUrl($image_url);
+            if ($image_content === false) {
+                return [
+                    'success' => false,
+                    'updated_fields' => [],
+                    'errors' => ['Failed to download image from Firebase Storage']
+                ];
+            }
+
+            $temp_file = $this->saveTempImage($image_content, $image_url);
+            if ($temp_file === false) {
+                return [
+                    'success' => false,
+                    'updated_fields' => [],
+                    'errors' => ['Failed to save temporary image file']
+                ];
+            }
+
+            $image_id = $this->addImageToProduct($product->id, $temp_file);
+
+            @unlink($temp_file);
+
+            if ($image_id) {
+                $updated_fields[] = "image (added from Firebase Storage)";
+                ChannableLogger::getInstance()->addLog(
+                    'Image added from Firebase Storage for product: ' . $product->id,
+                    2,
+                    false,
+                    ['product_id' => $product->id, 'image_url' => $image_url, 'image_id' => $image_id]
+                );
+
+                return [
+                    'success' => true,
+                    'updated_fields' => $updated_fields,
+                    'errors' => []
+                ];
+            } else {
+                return [
+                    'success' => false,
+                    'updated_fields' => [],
+                    'errors' => ['Failed to add image to product']
+                ];
+            }
+
+        } catch (Exception $e) {
+            ChannableLogger::getInstance()->addLog(
+                'Error handling image update: ' . $e->getMessage(),
+                1,
+                $e,
+                ['product_id' => $product->id, 'image_url' => $image_url]
+            );
+
+            return [
+                'success' => false,
+                'updated_fields' => [],
+                'errors' => ['Image update failed: ' . $e->getMessage()]
+            ];
+        }
+    }
+
+    private function isFirebaseStorageUrl($url)
+    {
+        return (strpos($url, 'firebasestorage.googleapis.com') !== false) ||
+               (strpos($url, 'flender') !== false) ||
+               (strpos($url, 'girofieeds') !== false);
+    }
+
+    private function downloadImageFromUrl($url)
+    {
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
+
+        $image_content = curl_exec($ch);
+        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+        curl_close($ch);
+
+        if ($http_code === 200 && $image_content !== false) {
+            return $image_content;
+        }
+
+        return false;
+    }
+
+    private function saveTempImage($content, $url)
+    {
+        $extension = $this->getImageExtensionFromUrl($url);
+        if (!$extension) {
+            $extension = $this->getImageExtensionFromContent($content);
+        }
+
+        if (!$extension) {
+            $extension = 'jpg';
+        }
+
+        $temp_file = tempnam(sys_get_temp_dir(), 'img_') . '.' . $extension;
+
+        if (file_put_contents($temp_file, $content) !== false) {
+            return $temp_file;
+        }
+
+        return false;
+    }
+
+    private function getImageExtensionFromUrl($url)
+    {
+        $path = parse_url($url, PHP_URL_PATH);
+        if ($path) {
+            $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+            if (in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'webp'])) {
+                return $extension;
+            }
+        }
+        return false;
+    }
+
+    private function getImageExtensionFromContent($content)
+    {
+        $finfo = new finfo(FILEINFO_MIME_TYPE);
+        $mime_type = $finfo->buffer($content);
+
+        $mime_to_ext = [
+            'image/jpeg' => 'jpg',
+            'image/png' => 'png',
+            'image/gif' => 'gif',
+            'image/webp' => 'webp'
+        ];
+
+        return isset($mime_to_ext[$mime_type]) ? $mime_to_ext[$mime_type] : false;
+    }
+
+    private function addImageToProduct($id_product, $image_path)
+    {
+        try {
+            $image = new Image();
+            $image->id_product = (int) $id_product;
+            $image->position = Image::getHighestPosition($id_product) + 1;
+            $image->cover = false;
+
+            $images = Image::getImages((int) Context::getContext()->language->id, (int) $id_product);
+            if (empty($images)) {
+                $image->cover = true;
+            }
+
+            if ($image->add()) {
+                $new_path = $image->getPathForCreation();
+
+                if (!ImageManager::resize($image_path, $new_path . '.jpg')) {
+                    $image->delete();
+                    return false;
+                }
+
+                $images_types = ImageType::getImagesTypes('products');
+                foreach ($images_types as $image_type) {
+                    if (!ImageManager::resize(
+                        $image_path,
+                        $new_path . '-' . stripslashes($image_type['name']) . '.jpg',
+                        $image_type['width'],
+                        $image_type['height']
+                    )) {
+                        $image->delete();
+                        return false;
+                    }
+                }
+
+                return $image->id;
+            }
+
+            return false;
+
+        } catch (Exception $e) {
+            ChannableLogger::getInstance()->addLog(
+                'Exception adding image to product: ' . $e->getMessage(),
+                1,
+                $e,
+                ['product_id' => $id_product, 'image_path' => $image_path]
+            );
+            return false;
         }
     }
 }
