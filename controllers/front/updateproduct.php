@@ -166,10 +166,31 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
                         $updated_fields[$uf['field']] = $uf['value'];
                     }
                     if (isset($category_result['debug'])) {
-                        $categories_debug = $category_result['debug'];
+                        $categories_debug = array_merge(
+                            isset($categories_debug) ? $categories_debug : [],
+                            $category_result['debug']
+                        );
                     }
                 } else {
                     $errors = array_merge($errors, $category_result['errors']);
+                }
+                continue;
+            }
+
+            if ($field_name === 'categories') {
+                $categories_result = $this->handleCategoriesUpdate($product, $value);
+                if ($categories_result['success']) {
+                    foreach ($categories_result['updated_fields'] as $uf) {
+                        $updated_fields[$uf['field']] = $uf['value'];
+                    }
+                    if (isset($categories_result['debug'])) {
+                        $categories_debug = array_merge(
+                            isset($categories_debug) ? $categories_debug : [],
+                            $categories_result['debug']
+                        );
+                    }
+                } else {
+                    $errors = array_merge($errors, $categories_result['errors']);
                 }
                 continue;
             }
@@ -989,8 +1010,8 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
         $errors = [];
         $debug = [
             'input' => $category_data,
-            'created_categories' => [],
-            'existing_categories' => [],
+            'created' => false,
+            'existing' => false,
             'final_category_id' => null,
             'final_category_name' => null,
             'previous_category_id' => $product->id_category_default
@@ -1004,60 +1025,30 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
                     $category = new Category($id_category, (int) Configuration::get('PS_LANG_DEFAULT'));
                     $debug['final_category_id'] = $id_category;
                     $debug['final_category_name'] = $category->name;
-                    $debug['existing_categories'][] = ['id' => $id_category, 'name' => $category->name];
+                    $debug['existing'] = true;
                     $updated_fields[] = ['field' => 'id_category_default', 'value' => $id_category];
                 } else {
                     $errors[] = "Category with ID {$id_category} does not exist";
                 }
             } elseif (is_string($category_data)) {
-                if (strpos($category_data, '>') !== false) {
-                    $category_path = array_map('trim', explode('>', $category_data));
-                    $result = $this->findOrCreateCategoryPathWithDebug($category_path);
+                $category_name = trim($category_data);
+                if (!empty($category_name)) {
+                    $result = $this->findOrCreateCategoryByName($category_name);
                     if ($result['id_category']) {
                         $product->id_category_default = $result['id_category'];
                         $debug['final_category_id'] = $result['id_category'];
-                        $debug['final_category_name'] = end($category_path);
-                        $debug['created_categories'] = $result['created'];
-                        $debug['existing_categories'] = $result['existing'];
+                        $debug['final_category_name'] = $category_name;
+                        $debug['created'] = $result['created'];
+                        $debug['existing'] = !$result['created'];
                         $updated_fields[] = ['field' => 'id_category_default', 'value' => $result['id_category']];
                     } else {
-                        $errors[] = "Failed to create category path: {$category_data}";
+                        $errors[] = "Failed to create or find category: {$category_name}";
                     }
                 } else {
-                    $category_name = trim($category_data);
-                    if (!empty($category_name)) {
-                        $result = $this->findOrCreateCategoryWithDebug($category_name);
-                        if ($result['id_category']) {
-                            $product->id_category_default = $result['id_category'];
-                            $debug['final_category_id'] = $result['id_category'];
-                            $debug['final_category_name'] = $category_name;
-                            if ($result['created']) {
-                                $debug['created_categories'][] = ['id' => $result['id_category'], 'name' => $category_name];
-                            } else {
-                                $debug['existing_categories'][] = ['id' => $result['id_category'], 'name' => $category_name];
-                            }
-                            $updated_fields[] = ['field' => 'id_category_default', 'value' => $result['id_category']];
-                        } else {
-                            $errors[] = "Failed to create or find category: {$category_name}";
-                        }
-                    } else {
-                        $errors[] = "Category name cannot be empty";
-                    }
-                }
-            } elseif (is_array($category_data)) {
-                $result = $this->findOrCreateCategoryPathWithDebug($category_data);
-                if ($result['id_category']) {
-                    $product->id_category_default = $result['id_category'];
-                    $debug['final_category_id'] = $result['id_category'];
-                    $debug['final_category_name'] = end($category_data);
-                    $debug['created_categories'] = $result['created'];
-                    $debug['existing_categories'] = $result['existing'];
-                    $updated_fields[] = ['field' => 'id_category_default', 'value' => $result['id_category']];
-                } else {
-                    $errors[] = "Failed to create category path: " . implode(' > ', $category_data);
+                    $errors[] = "Category name cannot be empty";
                 }
             } else {
-                $errors[] = "Invalid category format";
+                $errors[] = "Invalid category format (must be string with category name or numeric ID)";
             }
 
             return [
@@ -1081,6 +1072,206 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
                 'errors' => ['Category update failed: ' . $e->getMessage()],
                 'debug' => $debug
             ];
+        }
+    }
+
+    private function handleCategoriesUpdate($product, $categories_data)
+    {
+        $updated_fields = [];
+        $errors = [];
+        $debug = [
+            'input' => $categories_data,
+            'created_categories' => [],
+            'existing_categories' => [],
+            'associated_category_ids' => [],
+            'previous_categories' => [],
+            'skipped_categories' => []
+        ];
+
+        try {
+            if (!is_array($categories_data)) {
+                return [
+                    'success' => false,
+                    'updated_fields' => [],
+                    'errors' => ['Categories must be an array'],
+                    'debug' => $debug
+                ];
+            }
+
+            $current_categories = $product->getCategories();
+            $debug['previous_categories'] = $current_categories;
+
+            $category_ids = [];
+
+            if ($product->id_category_default) {
+                $category_ids[] = (int) $product->id_category_default;
+            }
+
+            foreach ($categories_data as $category_name) {
+                if (empty($category_name) || !is_string($category_name)) {
+                    $debug['skipped_categories'][] = [
+                        'value' => $category_name,
+                        'reason' => 'Empty or not a string'
+                    ];
+                    continue;
+                }
+
+                $category_name = trim($category_name);
+                if (empty($category_name)) {
+                    $debug['skipped_categories'][] = [
+                        'value' => $category_name,
+                        'reason' => 'Empty after trim'
+                    ];
+                    continue;
+                }
+
+                $result = $this->findOrCreateCategoryByName($category_name);
+
+                if ($result['id_category']) {
+                    $category_ids[] = (int) $result['id_category'];
+
+                    if ($result['created']) {
+                        $debug['created_categories'][] = [
+                            'id' => $result['id_category'],
+                            'name' => $category_name
+                        ];
+                    } else {
+                        $debug['existing_categories'][] = [
+                            'id' => $result['id_category'],
+                            'name' => $category_name
+                        ];
+                    }
+                } else {
+                    $errors[] = "Failed to find or create category: {$category_name}";
+                    $debug['skipped_categories'][] = [
+                        'value' => $category_name,
+                        'reason' => 'Failed to find or create'
+                    ];
+                }
+            }
+
+            $category_ids = array_unique($category_ids);
+            $debug['associated_category_ids'] = $category_ids;
+
+            if (!empty($category_ids)) {
+                $this->clearProductCategories($product->id);
+
+                $success = $this->associateProductWithCategories($product->id, $category_ids);
+
+                if ($success) {
+                    $updated_fields[] = [
+                        'field' => 'categories',
+                        'value' => implode(', ', $category_ids)
+                    ];
+
+                    ChannableLogger::getInstance()->addLog(
+                        'Categories updated for product: ' . $product->id,
+                        2,
+                        false,
+                        [
+                            'product_id' => $product->id,
+                            'category_ids' => $category_ids,
+                            'created' => count($debug['created_categories']),
+                            'existing' => count($debug['existing_categories'])
+                        ]
+                    );
+                } else {
+                    $errors[] = "Failed to associate categories with product";
+                }
+            }
+
+            return [
+                'success' => empty($errors) || !empty($updated_fields),
+                'updated_fields' => $updated_fields,
+                'errors' => $errors,
+                'debug' => $debug
+            ];
+
+        } catch (Exception $e) {
+            ChannableLogger::getInstance()->addLog(
+                'Error handling categories update: ' . $e->getMessage(),
+                1,
+                $e,
+                ['categories_data' => $categories_data]
+            );
+
+            return [
+                'success' => false,
+                'updated_fields' => [],
+                'errors' => ['Categories update failed: ' . $e->getMessage()],
+                'debug' => $debug
+            ];
+        }
+    }
+
+    private function findOrCreateCategoryByName($category_name)
+    {
+        $id_lang = (int) Configuration::get('PS_LANG_DEFAULT');
+
+        $sql = 'SELECT c.id_category
+                FROM ' . _DB_PREFIX_ . 'category c
+                LEFT JOIN ' . _DB_PREFIX_ . 'category_lang cl ON (c.id_category = cl.id_category)
+                WHERE LOWER(cl.name) = "' . pSQL(Tools::strtolower($category_name)) . '"
+                AND cl.id_lang = ' . (int) $id_lang . '
+                AND c.active = 1
+                LIMIT 1';
+
+        $existing_id = Db::getInstance()->getValue($sql);
+
+        if ($existing_id) {
+            return ['id_category' => (int) $existing_id, 'created' => false];
+        }
+
+        $new_id = $this->createCategory($category_name, 2);
+        return ['id_category' => $new_id, 'created' => ($new_id !== false)];
+    }
+
+    private function clearProductCategories($id_product)
+    {
+        try {
+            $sql = 'DELETE FROM ' . _DB_PREFIX_ . 'category_product
+                    WHERE id_product = ' . (int) $id_product;
+
+            return Db::getInstance()->execute($sql);
+        } catch (Exception $e) {
+            ChannableLogger::getInstance()->addLog(
+                'Error clearing product categories: ' . $e->getMessage(),
+                1,
+                $e,
+                ['product_id' => $id_product]
+            );
+            return false;
+        }
+    }
+
+    private function associateProductWithCategories($id_product, $category_ids)
+    {
+        try {
+            if (empty($category_ids)) {
+                return false;
+            }
+
+            $position = 0;
+            foreach ($category_ids as $id_category) {
+                $sql = 'INSERT INTO ' . _DB_PREFIX_ . 'category_product
+                        (id_category, id_product, position)
+                        VALUES (' . (int) $id_category . ', ' . (int) $id_product . ', ' . (int) $position . ')
+                        ON DUPLICATE KEY UPDATE position = ' . (int) $position;
+
+                Db::getInstance()->execute($sql);
+                $position++;
+            }
+
+            return true;
+
+        } catch (Exception $e) {
+            ChannableLogger::getInstance()->addLog(
+                'Error associating product with categories: ' . $e->getMessage(),
+                1,
+                $e,
+                ['product_id' => $id_product, 'category_ids' => $category_ids]
+            );
+            return false;
         }
     }
 

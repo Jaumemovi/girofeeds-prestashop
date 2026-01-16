@@ -1,5 +1,17 @@
 # Changelog
 
+### 3.3.13
+
+- **NEW: Multi-category support in product update API**
+- Added support for `categories` field (array) to associate multiple categories to a product
+- Modified `category` field to accept category name (string) or ID (numeric) for the main category
+- Automatic category creation if category name doesn't exist in PrestaShop
+- Categories are searched by name (case-insensitive) in existing PrestaShop categories
+- New categories are created as children of root category (Home)
+- All product categories are replaced when `categories` field is provided
+- Improved debug information for category operations (created, existing, associated)
+- Categories field accepts array of category names: `["Category 1", "Category 2", ...]`
+
 ### 3.3.12
 
 - Enhanced product update API response with comprehensive debug information
