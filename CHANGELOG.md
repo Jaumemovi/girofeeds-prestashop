@@ -1,5 +1,14 @@
 # Changelog
 
+### 3.3.12
+
+- Enhanced product update API response with comprehensive debug information
+- Updated fields now return as object with field name and actual modified value
+- Added categories_debug section: input value, created/existing categories, final category details, previous category
+- Added images_debug section: source URL, download status, image ID, PrestaShop path, cover status, demoted images
+- Added brands_debug section: input value, created/existing manufacturer, final manufacturer details
+- Improved error reporting and troubleshooting capabilities
+
 ### 3.3.11
 
 - Added Firebase Storage image download support in product update endpoint
@@ -8,11 +17,6 @@
 - Support for image fields: image, image_url, image_link
 - Automatic image format detection (jpg, png, gif, webp)
 - All product image thumbnails are generated automatically
-- Improved API response with detailed debug information:
-  - updated_fields now returns object with field name and new value
-  - categories_debug: shows created/existing categories, final category ID/name
-  - images_debug: shows source URL, download status, image ID, PrestaShop path, demoted images
-  - brands_debug: shows created/existing manufacturer, final manufacturer ID/name
 
 ### 3.3.10
 
