@@ -177,6 +177,9 @@ class ChannableFeedfield extends ObjectModel
     public static function excludeFieldsAlreadyInFeedController(array $fields)
     {
         foreach ($fields as $fieldgroup => $groupfields) {
+            if ($fieldgroup === 'orders') {
+                continue;
+            }
             foreach ($groupfields as $fieldkey => $fieldname) {
                 if (isset(self::$fields_in_feed[$fieldgroup]) && in_array($fieldname, self::$fields_in_feed[$fieldgroup])) {
                     unset($fields[$fieldgroup][$fieldkey]);
