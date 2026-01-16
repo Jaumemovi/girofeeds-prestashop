@@ -8,6 +8,11 @@
 - Support for image fields: image, image_url, image_link
 - Automatic image format detection (jpg, png, gif, webp)
 - All product image thumbnails are generated automatically
+- Improved API response with detailed debug information:
+  - updated_fields now returns object with field name and new value
+  - categories_debug: shows created/existing categories, final category ID/name
+  - images_debug: shows source URL, download status, image ID, PrestaShop path, demoted images
+  - brands_debug: shows created/existing manufacturer, final manufacturer ID/name
 
 ### 3.3.10
 

@@ -146,6 +146,9 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
         $product = new Product($id_product);
         $updated_fields = [];
         $errors = [];
+        $categories_debug = [];
+        $images_debug = [];
+        $brands_debug = [];
 
         $feedFieldsConfig = $this->getFeedFieldsMapping();
 
@@ -159,7 +162,12 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
             if ($field_name === 'category') {
                 $category_result = $this->handleCategoryUpdate($product, $value);
                 if ($category_result['success']) {
-                    $updated_fields = array_merge($updated_fields, $category_result['updated_fields']);
+                    foreach ($category_result['updated_fields'] as $uf) {
+                        $updated_fields[$uf['field']] = $uf['value'];
+                    }
+                    if (isset($category_result['debug'])) {
+                        $categories_debug = $category_result['debug'];
+                    }
                 } else {
                     $errors = array_merge($errors, $category_result['errors']);
                 }
@@ -169,7 +177,13 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
             if ($field_name === 'specific_price' && is_array($value)) {
                 $specific_price_result = $this->handleSpecificPriceUpdate($product, $value);
                 if ($specific_price_result['success']) {
-                    $updated_fields = array_merge($updated_fields, $specific_price_result['updated_fields']);
+                    foreach ($specific_price_result['updated_fields'] as $uf) {
+                        if (is_array($uf)) {
+                            $updated_fields[$uf['field']] = $uf['value'];
+                        } else {
+                            $updated_fields['specific_price'] = $uf;
+                        }
+                    }
                 } else {
                     $errors = array_merge($errors, $specific_price_result['errors']);
                 }
@@ -179,7 +193,12 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
             if ($field_name === 'brand') {
                 $brand_result = $this->handleBrandUpdate($product, $value);
                 if ($brand_result['success']) {
-                    $updated_fields = array_merge($updated_fields, $brand_result['updated_fields']);
+                    foreach ($brand_result['updated_fields'] as $uf) {
+                        $updated_fields[$uf['field']] = $uf['value'];
+                    }
+                    if (isset($brand_result['debug'])) {
+                        $brands_debug = $brand_result['debug'];
+                    }
                 } else {
                     $errors = array_merge($errors, $brand_result['errors']);
                 }
@@ -189,7 +208,9 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
             if ($field_name === 'supplier') {
                 $supplier_result = $this->handleSupplierUpdate($product, $value);
                 if ($supplier_result['success']) {
-                    $updated_fields = array_merge($updated_fields, $supplier_result['updated_fields']);
+                    foreach ($supplier_result['updated_fields'] as $uf) {
+                        $updated_fields[$uf['field']] = $uf['value'];
+                    }
                 } else {
                     $errors = array_merge($errors, $supplier_result['errors']);
                 }
@@ -199,7 +220,9 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
             if ($field_name === 'stock' || $field_name === 'quantity') {
                 $stock_result = $this->handleStockUpdate($product, $value, $id_product_attribute);
                 if ($stock_result['success']) {
-                    $updated_fields = array_merge($updated_fields, $stock_result['updated_fields']);
+                    foreach ($stock_result['updated_fields'] as $uf) {
+                        $updated_fields[$uf['field']] = $uf['value'];
+                    }
                 } else {
                     $errors = array_merge($errors, $stock_result['errors']);
                 }
@@ -209,7 +232,9 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
             if ($field_name === 'specifications' || $field_name === 'features') {
                 $specs_result = $this->handleSpecificationsUpdate($product, $value);
                 if ($specs_result['success']) {
-                    $updated_fields = array_merge($updated_fields, $specs_result['updated_fields']);
+                    foreach ($specs_result['updated_fields'] as $uf) {
+                        $updated_fields[$uf['field']] = $uf['value'];
+                    }
                 } else {
                     $errors = array_merge($errors, $specs_result['errors']);
                 }
@@ -219,7 +244,9 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
             if ($field_name === 'product_supplier_reference' || $field_name === 'supplier_reference') {
                 $supplier_ref_result = $this->handleSupplierReferenceUpdate($product, $value);
                 if ($supplier_ref_result['success']) {
-                    $updated_fields = array_merge($updated_fields, $supplier_ref_result['updated_fields']);
+                    foreach ($supplier_ref_result['updated_fields'] as $uf) {
+                        $updated_fields[$uf['field']] = $uf['value'];
+                    }
                 } else {
                     $errors = array_merge($errors, $supplier_ref_result['errors']);
                 }
@@ -229,7 +256,12 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
             if ($field_name === 'image' || $field_name === 'image_url' || $field_name === 'image_link') {
                 $image_result = $this->handleImageUpdate($product, $value);
                 if ($image_result['success']) {
-                    $updated_fields = array_merge($updated_fields, $image_result['updated_fields']);
+                    foreach ($image_result['updated_fields'] as $uf) {
+                        $updated_fields[$uf['field']] = $uf['value'];
+                    }
+                    if (isset($image_result['debug'])) {
+                        $images_debug = $image_result['debug'];
+                    }
                 } else {
                     $errors = array_merge($errors, $image_result['errors']);
                 }
@@ -244,7 +276,9 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
 
             $result = $this->updateField($product, $fieldInfo, $value, $id_product_attribute);
             if ($result['success']) {
-                $updated_fields = array_merge($updated_fields, $result['updated_fields']);
+                foreach ($result['updated_fields'] as $uf) {
+                    $updated_fields[$uf['field']] = $uf['value'];
+                }
             } else {
                 $errors = array_merge($errors, $result['errors']);
             }
@@ -281,13 +315,25 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
                 ChannableProductsQueue::addToQueueIfNotExists($id_product);
             }
 
-            return [
+            $response = [
                 'status' => 'success',
                 'message' => 'Product updated successfully',
                 'product_id' => $id_product,
                 'updated_fields' => $updated_fields,
                 'errors' => $errors
             ];
+
+            if (!empty($categories_debug)) {
+                $response['categories_debug'] = $categories_debug;
+            }
+            if (!empty($images_debug)) {
+                $response['images_debug'] = $images_debug;
+            }
+            if (!empty($brands_debug)) {
+                $response['brands_debug'] = $brands_debug;
+            }
+
+            return $response;
         } else {
             return [
                 'status' => 'error',
@@ -464,7 +510,7 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
             $product->{$field} = $validated_value;
             return [
                 'success' => true,
-                'updated_fields' => [$field],
+                'updated_fields' => [['field' => $field, 'value' => $validated_value]],
                 'errors' => []
             ];
         }
@@ -501,7 +547,7 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
             }
             return [
                 'success' => true,
-                'updated_fields' => ["product_shop.{$field}"],
+                'updated_fields' => [['field' => "product_shop.{$field}", 'value' => $validated_value]],
                 'errors' => []
             ];
         }
@@ -524,11 +570,11 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
                 if ($validated_value !== false) {
                     if (property_exists($product, $field) && is_array($product->{$field})) {
                         $product->{$field}[$id_lang] = $validated_value;
-                        $updated_fields[] = "{$field}[{$id_lang}]";
+                        $updated_fields[] = ['field' => "{$field}[lang_{$id_lang}]", 'value' => $validated_value];
                     } else {
                         $result = $this->directUpdateProductLang($product->id, $id_lang, $field, $validated_value);
                         if ($result) {
-                            $updated_fields[] = "{$field}[{$id_lang}]";
+                            $updated_fields[] = ['field' => "{$field}[lang_{$id_lang}]", 'value' => $validated_value];
                         } else {
                             $errors[] = "Failed to update {$field} for language {$id_lang}";
                         }
@@ -544,11 +590,11 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
             if ($validated_value !== false) {
                 if (property_exists($product, $field) && is_array($product->{$field})) {
                     $product->{$field}[$id_lang] = $validated_value;
-                    $updated_fields[] = "{$field}[{$id_lang}]";
+                    $updated_fields[] = ['field' => "{$field}[lang_{$id_lang}]", 'value' => $validated_value];
                 } else {
                     $result = $this->directUpdateProductLang($product->id, $id_lang, $field, $validated_value);
                     if ($result) {
-                        $updated_fields[] = "{$field}[{$id_lang}]";
+                        $updated_fields[] = ['field' => "{$field}[lang_{$id_lang}]", 'value' => $validated_value];
                     } else {
                         $errors[] = "Failed to update {$field}";
                     }
@@ -941,33 +987,56 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
     {
         $updated_fields = [];
         $errors = [];
+        $debug = [
+            'input' => $category_data,
+            'created_categories' => [],
+            'existing_categories' => [],
+            'final_category_id' => null,
+            'final_category_name' => null,
+            'previous_category_id' => $product->id_category_default
+        ];
 
         try {
             if (is_numeric($category_data)) {
                 $id_category = (int) $category_data;
                 if ($this->categoryExists($id_category)) {
                     $product->id_category_default = $id_category;
-                    $updated_fields[] = "id_category_default";
+                    $category = new Category($id_category, (int) Configuration::get('PS_LANG_DEFAULT'));
+                    $debug['final_category_id'] = $id_category;
+                    $debug['final_category_name'] = $category->name;
+                    $debug['existing_categories'][] = ['id' => $id_category, 'name' => $category->name];
+                    $updated_fields[] = ['field' => 'id_category_default', 'value' => $id_category];
                 } else {
                     $errors[] = "Category with ID {$id_category} does not exist";
                 }
             } elseif (is_string($category_data)) {
                 if (strpos($category_data, '>') !== false) {
                     $category_path = array_map('trim', explode('>', $category_data));
-                    $id_category = $this->findOrCreateCategoryPath($category_path);
-                    if ($id_category) {
-                        $product->id_category_default = $id_category;
-                        $updated_fields[] = "id_category_default";
+                    $result = $this->findOrCreateCategoryPathWithDebug($category_path);
+                    if ($result['id_category']) {
+                        $product->id_category_default = $result['id_category'];
+                        $debug['final_category_id'] = $result['id_category'];
+                        $debug['final_category_name'] = end($category_path);
+                        $debug['created_categories'] = $result['created'];
+                        $debug['existing_categories'] = $result['existing'];
+                        $updated_fields[] = ['field' => 'id_category_default', 'value' => $result['id_category']];
                     } else {
                         $errors[] = "Failed to create category path: {$category_data}";
                     }
                 } else {
                     $category_name = trim($category_data);
                     if (!empty($category_name)) {
-                        $id_category = $this->findOrCreateCategory($category_name);
-                        if ($id_category) {
-                            $product->id_category_default = $id_category;
-                            $updated_fields[] = "id_category_default";
+                        $result = $this->findOrCreateCategoryWithDebug($category_name);
+                        if ($result['id_category']) {
+                            $product->id_category_default = $result['id_category'];
+                            $debug['final_category_id'] = $result['id_category'];
+                            $debug['final_category_name'] = $category_name;
+                            if ($result['created']) {
+                                $debug['created_categories'][] = ['id' => $result['id_category'], 'name' => $category_name];
+                            } else {
+                                $debug['existing_categories'][] = ['id' => $result['id_category'], 'name' => $category_name];
+                            }
+                            $updated_fields[] = ['field' => 'id_category_default', 'value' => $result['id_category']];
                         } else {
                             $errors[] = "Failed to create or find category: {$category_name}";
                         }
@@ -976,10 +1045,14 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
                     }
                 }
             } elseif (is_array($category_data)) {
-                $id_category = $this->findOrCreateCategoryPath($category_data);
-                if ($id_category) {
-                    $product->id_category_default = $id_category;
-                    $updated_fields[] = "id_category_default";
+                $result = $this->findOrCreateCategoryPathWithDebug($category_data);
+                if ($result['id_category']) {
+                    $product->id_category_default = $result['id_category'];
+                    $debug['final_category_id'] = $result['id_category'];
+                    $debug['final_category_name'] = end($category_data);
+                    $debug['created_categories'] = $result['created'];
+                    $debug['existing_categories'] = $result['existing'];
+                    $updated_fields[] = ['field' => 'id_category_default', 'value' => $result['id_category']];
                 } else {
                     $errors[] = "Failed to create category path: " . implode(' > ', $category_data);
                 }
@@ -990,7 +1063,8 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
             return [
                 'success' => empty($errors),
                 'updated_fields' => $updated_fields,
-                'errors' => $errors
+                'errors' => $errors,
+                'debug' => $debug
             ];
 
         } catch (Exception $e) {
@@ -1004,7 +1078,8 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
             return [
                 'success' => false,
                 'updated_fields' => [],
-                'errors' => ['Category update failed: ' . $e->getMessage()]
+                'errors' => ['Category update failed: ' . $e->getMessage()],
+                'debug' => $debug
             ];
         }
     }
@@ -1110,6 +1185,63 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
         }
 
         return $final_category_id;
+    }
+
+    private function findOrCreateCategoryWithDebug($category_name, $id_parent = 2)
+    {
+        $id_lang = (int) Configuration::get('PS_LANG_DEFAULT');
+
+        $sql = 'SELECT c.id_category
+                FROM ' . _DB_PREFIX_ . 'category c
+                LEFT JOIN ' . _DB_PREFIX_ . 'category_lang cl ON (c.id_category = cl.id_category)
+                WHERE cl.name = "' . pSQL($category_name) . '"
+                AND cl.id_lang = ' . (int) $id_lang . '
+                AND c.id_parent = ' . (int) $id_parent . '
+                AND c.active = 1';
+
+        $existing_id = Db::getInstance()->getValue($sql);
+
+        if ($existing_id) {
+            return ['id_category' => (int) $existing_id, 'created' => false];
+        }
+
+        $new_id = $this->createCategory($category_name, $id_parent);
+        return ['id_category' => $new_id, 'created' => ($new_id !== false)];
+    }
+
+    private function findOrCreateCategoryPathWithDebug($category_path)
+    {
+        if (!is_array($category_path) || empty($category_path)) {
+            return ['id_category' => false, 'created' => [], 'existing' => []];
+        }
+
+        $current_parent = 2;
+        $final_category_id = false;
+        $created = [];
+        $existing = [];
+
+        foreach ($category_path as $category_name) {
+            $category_name = trim($category_name);
+            if (empty($category_name)) {
+                continue;
+            }
+
+            $result = $this->findOrCreateCategoryWithDebug($category_name, $current_parent);
+            if (!$result['id_category']) {
+                return ['id_category' => false, 'created' => $created, 'existing' => $existing];
+            }
+
+            if ($result['created']) {
+                $created[] = ['id' => $result['id_category'], 'name' => $category_name, 'parent_id' => $current_parent];
+            } else {
+                $existing[] = ['id' => $result['id_category'], 'name' => $category_name, 'parent_id' => $current_parent];
+            }
+
+            $current_parent = $result['id_category'];
+            $final_category_id = $result['id_category'];
+        }
+
+        return ['id_category' => $final_category_id, 'created' => $created, 'existing' => $existing];
     }
 
     private function handleSpecificPriceUpdate($product, $specific_prices_data)
@@ -1315,55 +1447,77 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
     {
         $updated_fields = [];
         $errors = [];
+        $debug = [
+            'input' => $brand_value,
+            'previous_manufacturer_id' => $product->id_manufacturer,
+            'created' => false,
+            'existing' => false,
+            'final_manufacturer_id' => null,
+            'final_manufacturer_name' => null
+        ];
 
         try {
             if (empty($brand_value)) {
                 $product->id_manufacturer = 0;
-                $updated_fields[] = "id_manufacturer (cleared)";
+                $debug['final_manufacturer_id'] = 0;
+                $updated_fields[] = ['field' => 'id_manufacturer', 'value' => 0];
                 return [
                     'success' => true,
                     'updated_fields' => $updated_fields,
-                    'errors' => []
+                    'errors' => [],
+                    'debug' => $debug
                 ];
             }
 
             if (is_numeric($brand_value)) {
                 $id_manufacturer = (int) $brand_value;
                 if (Manufacturer::manufacturerExists($id_manufacturer)) {
+                    $manufacturer = new Manufacturer($id_manufacturer);
                     $product->id_manufacturer = $id_manufacturer;
-                    $updated_fields[] = "id_manufacturer";
+                    $debug['existing'] = true;
+                    $debug['final_manufacturer_id'] = $id_manufacturer;
+                    $debug['final_manufacturer_name'] = $manufacturer->name;
+                    $updated_fields[] = ['field' => 'id_manufacturer', 'value' => $id_manufacturer];
                     return [
                         'success' => true,
                         'updated_fields' => $updated_fields,
-                        'errors' => []
+                        'errors' => [],
+                        'debug' => $debug
                     ];
                 } else {
                     $errors[] = "Manufacturer with ID {$id_manufacturer} does not exist";
                     return [
                         'success' => false,
                         'updated_fields' => [],
-                        'errors' => $errors
+                        'errors' => $errors,
+                        'debug' => $debug
                     ];
                 }
             }
 
             $brand_name = trim($brand_value);
-            $id_manufacturer = $this->findOrCreateManufacturer($brand_name);
+            $result = $this->findOrCreateManufacturerWithDebug($brand_name);
 
-            if ($id_manufacturer) {
-                $product->id_manufacturer = $id_manufacturer;
-                $updated_fields[] = "id_manufacturer (brand: {$brand_name})";
+            if ($result['id_manufacturer']) {
+                $product->id_manufacturer = $result['id_manufacturer'];
+                $debug['created'] = $result['created'];
+                $debug['existing'] = !$result['created'];
+                $debug['final_manufacturer_id'] = $result['id_manufacturer'];
+                $debug['final_manufacturer_name'] = $brand_name;
+                $updated_fields[] = ['field' => 'id_manufacturer', 'value' => $result['id_manufacturer']];
                 return [
                     'success' => true,
                     'updated_fields' => $updated_fields,
-                    'errors' => []
+                    'errors' => [],
+                    'debug' => $debug
                 ];
             } else {
                 $errors[] = "Failed to find or create manufacturer: {$brand_name}";
                 return [
                     'success' => false,
                     'updated_fields' => [],
-                    'errors' => $errors
+                    'errors' => $errors,
+                    'debug' => $debug
                 ];
             }
 
@@ -1378,9 +1532,25 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
             return [
                 'success' => false,
                 'updated_fields' => [],
-                'errors' => ['Brand update failed: ' . $e->getMessage()]
+                'errors' => ['Brand update failed: ' . $e->getMessage()],
+                'debug' => $debug
             ];
         }
+    }
+
+    private function findOrCreateManufacturerWithDebug($manufacturer_name)
+    {
+        $sql = 'SELECT id_manufacturer FROM ' . _DB_PREFIX_ . 'manufacturer
+                WHERE name = "' . pSQL($manufacturer_name) . '"';
+
+        $existing_id = Db::getInstance()->getValue($sql);
+
+        if ($existing_id) {
+            return ['id_manufacturer' => (int) $existing_id, 'created' => false];
+        }
+
+        $new_id = $this->createManufacturer($manufacturer_name);
+        return ['id_manufacturer' => $new_id, 'created' => ($new_id !== false)];
     }
 
     private function findOrCreateManufacturer($manufacturer_name)
@@ -1892,22 +2062,49 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
     {
         $updated_fields = [];
         $errors = [];
+        $debug = [
+            'source_url' => $image_url,
+            'is_firebase_url' => false,
+            'download_success' => false,
+            'image_id' => null,
+            'is_cover' => true,
+            'position' => 1,
+            'prestashop_path' => null,
+            'previous_images_count' => 0,
+            'previous_images_demoted' => []
+        ];
 
         try {
             if (empty($image_url) || !is_string($image_url)) {
                 return [
                     'success' => false,
                     'updated_fields' => [],
-                    'errors' => ['Invalid image URL']
+                    'errors' => ['Invalid image URL'],
+                    'debug' => $debug
                 ];
             }
 
-            if (!$this->isFirebaseStorageUrl($image_url)) {
+            $debug['is_firebase_url'] = $this->isFirebaseStorageUrl($image_url);
+            if (!$debug['is_firebase_url']) {
                 return [
                     'success' => false,
                     'updated_fields' => [],
-                    'errors' => ['Image URL is not from Firebase Storage']
+                    'errors' => ['Image URL is not from Firebase Storage'],
+                    'debug' => $debug
                 ];
+            }
+
+            $existing_images = Image::getImages((int) Context::getContext()->language->id, (int) $product->id);
+            $debug['previous_images_count'] = count($existing_images);
+
+            foreach ($existing_images as $ei) {
+                if ($ei['cover'] == 1) {
+                    $debug['previous_images_demoted'][] = [
+                        'id_image' => $ei['id_image'],
+                        'was_cover' => true,
+                        'new_status' => 'demoted to secondary'
+                    ];
+                }
             }
 
             $image_content = $this->downloadImageFromUrl($image_url);
@@ -1915,42 +2112,53 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
                 return [
                     'success' => false,
                     'updated_fields' => [],
-                    'errors' => ['Failed to download image from Firebase Storage']
+                    'errors' => ['Failed to download image from Firebase Storage'],
+                    'debug' => $debug
                 ];
             }
+            $debug['download_success'] = true;
 
             $temp_file = $this->saveTempImage($image_content, $image_url);
             if ($temp_file === false) {
                 return [
                     'success' => false,
                     'updated_fields' => [],
-                    'errors' => ['Failed to save temporary image file']
+                    'errors' => ['Failed to save temporary image file'],
+                    'debug' => $debug
                 ];
             }
 
-            $image_id = $this->addImageToProduct($product->id, $temp_file);
+            $result = $this->addImageToProductWithDebug($product->id, $temp_file);
 
             @unlink($temp_file);
 
-            if ($image_id) {
-                $updated_fields[] = "image (added from Firebase Storage)";
+            if ($result['image_id']) {
+                $debug['image_id'] = $result['image_id'];
+                $debug['prestashop_path'] = $result['prestashop_path'];
+                $debug['is_cover'] = true;
+                $debug['position'] = 1;
+
+                $updated_fields[] = ['field' => 'image', 'value' => $result['image_id']];
                 ChannableLogger::getInstance()->addLog(
                     'Image added from Firebase Storage for product: ' . $product->id,
                     2,
                     false,
-                    ['product_id' => $product->id, 'image_url' => $image_url, 'image_id' => $image_id]
+                    ['product_id' => $product->id, 'image_url' => $image_url, 'image_id' => $result['image_id']]
                 );
 
                 return [
                     'success' => true,
                     'updated_fields' => $updated_fields,
-                    'errors' => []
+                    'errors' => [],
+                    'debug' => $debug
                 ];
             } else {
+                $debug['error'] = $result['error'];
                 return [
                     'success' => false,
                     'updated_fields' => [],
-                    'errors' => ['Failed to add image to product']
+                    'errors' => ['Failed to add image to product: ' . $result['error']],
+                    'debug' => $debug
                 ];
             }
 
@@ -1962,10 +2170,12 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
                 ['product_id' => $product->id, 'image_url' => $image_url]
             );
 
+            $debug['exception'] = $e->getMessage();
             return [
                 'success' => false,
                 'updated_fields' => [],
-                'errors' => ['Image update failed: ' . $e->getMessage()]
+                'errors' => ['Image update failed: ' . $e->getMessage()],
+                'debug' => $debug
             ];
         }
     }
@@ -2117,6 +2327,87 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
                 ['product_id' => $id_product, 'image_path' => $image_path]
             );
             return false;
+        }
+    }
+
+    private function addImageToProductWithDebug($id_product, $image_path)
+    {
+        try {
+            $images = Image::getImages((int) Context::getContext()->language->id, (int) $id_product);
+
+            if (!empty($images)) {
+                foreach ($images as $existing_image) {
+                    if ($existing_image['cover'] == 1) {
+                        Db::getInstance()->update(
+                            'image',
+                            ['cover' => 0],
+                            'id_image = ' . (int) $existing_image['id_image']
+                        );
+
+                        Db::getInstance()->update(
+                            'image_shop',
+                            ['cover' => 0],
+                            'id_image = ' . (int) $existing_image['id_image']
+                        );
+                    }
+                }
+            }
+
+            $image = new Image();
+            $image->id_product = (int) $id_product;
+            $image->position = 1;
+            $image->cover = true;
+
+            if ($image->add()) {
+                $new_path = $image->getPathForCreation();
+
+                if (!ImageManager::resize($image_path, $new_path . '.jpg')) {
+                    $image->delete();
+                    return ['image_id' => false, 'error' => 'Failed to resize main image', 'prestashop_path' => null];
+                }
+
+                $images_types = ImageType::getImagesTypes('products');
+                foreach ($images_types as $image_type) {
+                    if (!ImageManager::resize(
+                        $image_path,
+                        $new_path . '-' . stripslashes($image_type['name']) . '.jpg',
+                        $image_type['width'],
+                        $image_type['height']
+                    )) {
+                        $image->delete();
+                        return ['image_id' => false, 'error' => 'Failed to resize thumbnail: ' . $image_type['name'], 'prestashop_path' => null];
+                    }
+                }
+
+                if (!empty($images)) {
+                    foreach ($images as $key => $existing_image) {
+                        Db::getInstance()->update(
+                            'image',
+                            ['position' => (int) ($key + 2)],
+                            'id_image = ' . (int) $existing_image['id_image']
+                        );
+                    }
+                }
+
+                $prestashop_relative_path = 'img/p/' . implode('/', str_split((string) $image->id)) . '/' . $image->id . '.jpg';
+
+                return [
+                    'image_id' => $image->id,
+                    'error' => null,
+                    'prestashop_path' => $prestashop_relative_path
+                ];
+            }
+
+            return ['image_id' => false, 'error' => 'Failed to add image object', 'prestashop_path' => null];
+
+        } catch (Exception $e) {
+            ChannableLogger::getInstance()->addLog(
+                'Exception adding image to product: ' . $e->getMessage(),
+                1,
+                $e,
+                ['product_id' => $id_product, 'image_path' => $image_path]
+            );
+            return ['image_id' => false, 'error' => $e->getMessage(), 'prestashop_path' => null];
         }
     }
 }
