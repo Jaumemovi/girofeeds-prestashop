@@ -81,6 +81,12 @@ class ChannableFeedfield extends ObjectModel
             'reduction_tax',
             'reduction_type',
         ],
+        'orders' => [
+            'orders_last_7days',
+            'orders_last_30days',
+            'orders_last_365days',
+            'orders_all_time',
+        ],
     ];
 
     public static $definition = [
@@ -143,10 +149,19 @@ class ChannableFeedfield extends ObjectModel
         $fields = [];
         foreach (self::$fields_in_feed as $tablename => $fields_in_feed) {
             $fields[$tablename] = [];
-            $sql = 'SHOW COLUMNS FROM `' . _DB_PREFIX_ . pSQL($tablename) . '`';
-            if ($results = Db::getInstance()->executeS($sql)) {
-                foreach ($results as $row) {
-                    $fields[$tablename][] = $row['Field'];
+            if ($tablename === 'orders') {
+                $fields[$tablename] = [
+                    'orders_last_7days',
+                    'orders_last_30days',
+                    'orders_last_365days',
+                    'orders_all_time',
+                ];
+            } else {
+                $sql = 'SHOW COLUMNS FROM `' . _DB_PREFIX_ . pSQL($tablename) . '`';
+                if ($results = Db::getInstance()->executeS($sql)) {
+                    foreach ($results as $row) {
+                        $fields[$tablename][] = $row['Field'];
+                    }
                 }
             }
         }

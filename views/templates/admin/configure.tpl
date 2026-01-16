@@ -32,15 +32,15 @@
 {/if}
 
 <div class="panel">
-	<h3>{l s='ABOUT CHANNABLE' mod='channable'}</h3>
+	<h3>{l s='ABOUT GIROFEEDS' mod='channable'}</h3>
 	<img src="{$module_dir|escape:'html':'UTF-8'}views/img/channable.png" class="img_responsive channable_logo" />
 	<p>
-		{l s='Channable offers a cloud-based datafeed management tool, which makes online advertisement much easier for online retailers and marketing agencies. Within the tool you can set up clever rules in order to create optimized product feeds and/or connect with the APIs of several platforms, such as Amazon or Admarkt. Free technical support is included.' mod='channable'}
+		{l s='Girofeeds offers a cloud-based datafeed management tool, which makes online advertisement much easier for online retailers and marketing agencies. Within the tool you can set up clever rules in order to create optimized product feeds and/or connect with the APIs of several platforms, such as Amazon or Admarkt. Free technical support is included.' mod='channable'}
 	</p>
 	<div class="channable_clear"></div>
 	<h3>{l s='SEND YOUR PRESTASHOP ARTICLES TO MORE THAN 100 PRICE COMPARISON WEBSITES, AFFILIATES OR MARKETPLACES.' mod='channable'}</h3>
 	<p>
-		{l s='You can generate more traffic for your webshop by creating ads with product information on comparison websites, affiliate networks or marketplaces like eBay, Marktplaats, Beslist.nl, Bol.com, Amazon.com and more. With the Channable datafeed management tool you can easily control the flow of products to each channel. In this way, you can maximize the impact of your online campaign in one control center.' mod='channable'}
+		{l s='You can generate more traffic for your webshop by creating ads with product information on comparison websites, affiliate networks or marketplaces like eBay, Marktplaats, Beslist.nl, Bol.com, Amazon.com and more. With the Girofeeds datafeed management tool you can easily control the flow of products to each channel. In this way, you can maximize the impact of your online campaign in one control center.' mod='channable'}
 	</p>
 	<div class="channable_clear"></div>
 </div>
@@ -119,7 +119,7 @@
 	<div class="row">
 		<div class="col-xs-12 col-sm-6">
 			<p class="channable_orderstates_config_head channable_top_marged">
-				{l s='Use Channable order comment as Private Note' mod='channable'}
+				{l s='Use Girofeeds order comment as Private Note' mod='channable'}
 			</p>
 			<select name="comment_as_note" id="comment_as_note">
 				<option value="0">No</option>
@@ -128,7 +128,7 @@
 		</div>
 		<div class="col-xs-12 col-sm-6">
 			<p class="channable_orderstates_config_head channable_top_marged">
-				{l s='Use Channable order comment as Customer Thread' mod='channable'}
+				{l s='Use Girofeeds order comment as Customer Thread' mod='channable'}
 			</p>
 			<select name="comment_as_customer_thread" id="comment_as_customer_thread">
 				<option value="0">No</option>
@@ -137,7 +137,7 @@
 			</div>
 		<div class="col-xs-12 col-sm-6">
 			<p class="channable_orderstates_config_head channable_top_marged">
-				{l s='Show channable order info in order-view grid' mod='channable'} <i style="font-weight: normal">{l s='Only available in PS1.7.6 and higher' mod='channable'}</i>
+				{l s='Show Girofeeds order info in order-view grid' mod='channable'} <i style="font-weight: normal">{l s='Only available in PS1.7.6 and higher' mod='channable'}</i>
 			</p>
 			<select name="order_view_grid" id="order_view_grid">
 				<option value="0">No</option>
@@ -155,7 +155,7 @@
 		</div>
 		<div class="col-xs-12 col-sm-6">
 		  <p class="channable_orderstates_config_head channable_top_marged">
-			{l s='Call newOrder/actionValidateOrder-hook after processing order from channable' mod='channable'}
+			{l s='Call newOrder/actionValidateOrder-hook after processing order from Girofeeds' mod='channable'}
 		  </p>
 		  <select name="enable_new_order_hook" id="enable_new_order_hook">
 			<option value="0">No</option>
@@ -175,7 +175,7 @@
 		</div>
 		<div class="col-xs-12 col-sm-6">
 			<p class="channable_orderstates_config_head channable_top_marged">
-				{l s='Send product stock updates all X minutes to channable' mod='channable'}
+				{l s='Send product stock updates all X minutes to Girofeeds' mod='channable'}
 			</p>
 			<select name="send_product_stock_interval" id="send_product_stock_interval">
 				{foreach from=[5,10,15,30,45,60,120] item=minutes}
@@ -224,9 +224,6 @@
 	<p>
 		{l s='Key' mod='channable'}: {$channable_key|escape:'html':'UTF-8'}<br />
 		{l s='Lang-ID' mod='channable'}: {$lang_id|escape:'html':'UTF-8'}<br />
-	</p>
-	<p>
-		<a href="https://app.channable.com/connect/prestashop_plugin.html?url={$auto_connect_feed_url|escape:'html':'UTF-8'}&api_key={$channable_key|escape:'html':'UTF-8'}" target="_blank" class="btn btn-default">Click here to auto-connect with Channable</a>
 	</p>
 </div>
 

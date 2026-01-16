@@ -586,6 +586,16 @@ class ChannableFeedModuleFrontController extends ModuleFrontController
                         $row['specific_price'] = $this->fetchMappedSpecificPrices($row['parent_id']);
                     }
 
+                    $ordersFields = $this->getConfiguredOrdersFields();
+                    if (!empty($ordersFields)) {
+                        $ordersData = $this->fetchProductOrdersCounts($row['parent_id']);
+                        foreach ($ordersFields as $of) {
+                            if (isset($ordersData[$of['field_in_db']])) {
+                                $row[$of['field_in_feed']] = $ordersData[$of['field_in_db']];
+                            }
+                        }
+                    }
+
                     $row['attachments'] = '';
                     $attachments = Product::getAttachmentsStatic((int) Context::getContext()->language->id, $row['parent_id']);
                     if (sizeof($attachments) > 0) {
@@ -961,7 +971,7 @@ class ChannableFeedModuleFrontController extends ModuleFrontController
         $ret = '';
         if (is_array($feedfields)) {
             foreach ($feedfields as $ff) {
-                if ($ff['tablename'] != 'specific_price') {
+                if ($ff['tablename'] != 'specific_price' && $ff['tablename'] != 'orders') {
                     $ret .= '`' . $this->getTableShort($ff['tablename']) . '`.`' . pSQL($ff['field_in_db']) . '` AS `' . pSQL($ff['field_in_feed']) . '`, ';
                 }
             }
@@ -1440,5 +1450,59 @@ class ChannableFeedModuleFrontController extends ModuleFrontController
                 'location' => $location,
             ]
         );
+    }
+
+    protected function getConfiguredOrdersFields()
+    {
+        $feedfields = ChannableFeedfield::getAllFeedfields();
+        $ordersFields = [];
+        if (is_array($feedfields)) {
+            foreach ($feedfields as $ff) {
+                if ($ff['tablename'] == 'orders') {
+                    $ordersFields[] = $ff;
+                }
+            }
+        }
+        return $ordersFields;
+    }
+
+    protected function fetchProductOrdersCounts($id_product)
+    {
+        $orderStatusId = (int) Configuration::get('CHANNABLE_ORDERS_COUNT_STATUS');
+
+        if ($orderStatusId <= 0) {
+            return [
+                'orders_last_7days' => 0,
+                'orders_last_30days' => 0,
+                'orders_last_365days' => 0,
+                'orders_all_time' => 0,
+            ];
+        }
+
+        $id_shop = (int) Context::getContext()->shop->id;
+        $now = date('Y-m-d H:i:s');
+        $date_7days = date('Y-m-d H:i:s', strtotime('-7 days'));
+        $date_30days = date('Y-m-d H:i:s', strtotime('-30 days'));
+        $date_365days = date('Y-m-d H:i:s', strtotime('-365 days'));
+
+        $sql = 'SELECT
+            SUM(CASE WHEN o.date_add >= "' . pSQL($date_7days) . '" THEN od.product_quantity ELSE 0 END) as orders_last_7days,
+            SUM(CASE WHEN o.date_add >= "' . pSQL($date_30days) . '" THEN od.product_quantity ELSE 0 END) as orders_last_30days,
+            SUM(CASE WHEN o.date_add >= "' . pSQL($date_365days) . '" THEN od.product_quantity ELSE 0 END) as orders_last_365days,
+            SUM(od.product_quantity) as orders_all_time
+        FROM ' . _DB_PREFIX_ . 'order_detail od
+        INNER JOIN ' . _DB_PREFIX_ . 'orders o ON (od.id_order = o.id_order)
+        WHERE od.product_id = ' . (int) $id_product . '
+        AND o.current_state = ' . (int) $orderStatusId . '
+        AND o.id_shop = ' . (int) $id_shop;
+
+        $result = Db::getInstance(_PS_USE_SQL_SLAVE_)->getRow($sql);
+
+        return [
+            'orders_last_7days' => (int) ($result['orders_last_7days'] ?? 0),
+            'orders_last_30days' => (int) ($result['orders_last_30days'] ?? 0),
+            'orders_last_365days' => (int) ($result['orders_last_365days'] ?? 0),
+            'orders_all_time' => (int) ($result['orders_all_time'] ?? 0),
+        ];
     }
 }

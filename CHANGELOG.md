@@ -1,5 +1,18 @@
 # Changelog
 
+### 3.3.14
+
+- **Rebranding: Channable renamed to Girofeeds** in module configuration interface
+- Removed auto-connect button from module configuration
+- **NEW: Order counting fields for feed export**
+- Added order status selector in Feed Settings to configure which order status to count
+- New "orders" field group in Expert: Additional fields with:
+  - `orders_last_7days` - Orders in the last 7 days
+  - `orders_last_30days` - Orders in the last 30 days
+  - `orders_last_365days` - Orders in the last 365 days
+  - `orders_all_time` - All orders
+- Order counts are based on product quantity in orders with the configured status
+
 ### 3.3.13
 
 - **NEW: Multi-category support in product update API**

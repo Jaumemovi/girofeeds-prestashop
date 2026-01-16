@@ -30,7 +30,7 @@ class Channable extends Module
     {
         $this->name = 'channable';
         $this->tab = 'market_place';
-        $this->version = '3.3.13';
+        $this->version = '3.3.14';
         $this->author = 'patworx multimedia GmbH';
         $this->need_instance = 1;
         $this->module_key = 'b69e52b06d7c14d37ac752c73823c0b3';
@@ -617,6 +617,17 @@ class Channable extends Module
                             ],
                         ],
                     ],
+                    [
+                        'type' => 'select',
+                        'desc' => $this->l('Select order status to count orders per product in feed export (orders_last_7days, orders_last_30days, etc.)'),
+                        'name' => 'CHANNABLE_ORDERS_COUNT_STATUS',
+                        'label' => $this->l('Order status for counting orders'),
+                        'options' => [
+                            'query' => $this->getOrderStatusesForSelect(),
+                            'id' => 'id_order_state',
+                            'name' => 'name',
+                        ],
+                    ],
                 ],
                 'submit' => [
                     'title' => $this->l('Save'),
@@ -642,7 +653,15 @@ class Channable extends Module
             'CHANNABLE_DEFAULT_PAGE_SIZE' => Tools::getValue('CHANNABLE_DEFAULT_PAGE_SIZE', Configuration::get('CHANNABLE_DEFAULT_PAGE_SIZE')),
             'CHANNABLE_USE_GUEST_CHECKOUT' => Tools::getValue('CHANNABLE_USE_GUEST_CHECKOUT', Configuration::get('CHANNABLE_USE_GUEST_CHECKOUT') == '1' ? 1 : 0),
             'CHANNABLE_USE_FEED_CACHE' => Tools::getValue('CHANNABLE_USE_FEED_CACHE', Configuration::get('CHANNABLE_USE_FEED_CACHE') == '1' ? 1 : 0),
+            'CHANNABLE_ORDERS_COUNT_STATUS' => Tools::getValue('CHANNABLE_ORDERS_COUNT_STATUS', Configuration::get('CHANNABLE_ORDERS_COUNT_STATUS')),
         ];
+    }
+
+    protected function getOrderStatusesForSelect()
+    {
+        $orderStates = OrderState::getOrderStates((int) Configuration::get('PS_LANG_DEFAULT'));
+        array_unshift($orderStates, ['id_order_state' => 0, 'name' => '-- ' . $this->l('Select order status') . ' --']);
+        return $orderStates;
     }
 
     /**
