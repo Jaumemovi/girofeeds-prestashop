@@ -149,6 +149,7 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
         $categories_debug = [];
         $images_debug = [];
         $brands_debug = [];
+        $image_processed = false;
 
         $feedFieldsConfig = $this->getFeedFieldsMapping();
 
@@ -275,16 +276,19 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
             }
 
             if ($field_name === 'image' || $field_name === 'image_url' || $field_name === 'image_link') {
-                $image_result = $this->handleImageUpdate($product, $value);
-                if ($image_result['success']) {
-                    foreach ($image_result['updated_fields'] as $uf) {
-                        $updated_fields[$uf['field']] = $uf['value'];
+                if (!$image_processed) {
+                    $image_result = $this->handleImageUpdate($product, $value);
+                    if ($image_result['success']) {
+                        foreach ($image_result['updated_fields'] as $uf) {
+                            $updated_fields[$uf['field']] = $uf['value'];
+                        }
+                        if (isset($image_result['debug'])) {
+                            $images_debug = $image_result['debug'];
+                        }
+                    } else {
+                        $errors = array_merge($errors, $image_result['errors']);
                     }
-                    if (isset($image_result['debug'])) {
-                        $images_debug = $image_result['debug'];
-                    }
-                } else {
-                    $errors = array_merge($errors, $image_result['errors']);
+                    $image_processed = true;
                 }
                 continue;
             }
@@ -2446,80 +2450,6 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
         return isset($mime_to_ext[$mime_type]) ? $mime_to_ext[$mime_type] : false;
     }
 
-    private function addImageToProduct($id_product, $image_path)
-    {
-        try {
-            $images = Image::getImages((int) Context::getContext()->language->id, (int) $id_product);
-
-            if (!empty($images)) {
-                foreach ($images as $existing_image) {
-                    if ($existing_image['cover'] == 1) {
-                        Db::getInstance()->update(
-                            'image',
-                            ['cover' => 0],
-                            'id_image = ' . (int) $existing_image['id_image']
-                        );
-
-                        Db::getInstance()->update(
-                            'image_shop',
-                            ['cover' => 0],
-                            'id_image = ' . (int) $existing_image['id_image']
-                        );
-                    }
-                }
-            }
-
-            $image = new Image();
-            $image->id_product = (int) $id_product;
-            $image->position = 1;
-            $image->cover = true;
-
-            if ($image->add()) {
-                $new_path = $image->getPathForCreation();
-
-                if (!ImageManager::resize($image_path, $new_path . '.jpg')) {
-                    $image->delete();
-                    return false;
-                }
-
-                $images_types = ImageType::getImagesTypes('products');
-                foreach ($images_types as $image_type) {
-                    if (!ImageManager::resize(
-                        $image_path,
-                        $new_path . '-' . stripslashes($image_type['name']) . '.jpg',
-                        $image_type['width'],
-                        $image_type['height']
-                    )) {
-                        $image->delete();
-                        return false;
-                    }
-                }
-
-                if (!empty($images)) {
-                    foreach ($images as $key => $existing_image) {
-                        Db::getInstance()->update(
-                            'image',
-                            ['position' => (int) ($key + 2)],
-                            'id_image = ' . (int) $existing_image['id_image']
-                        );
-                    }
-                }
-
-                return $image->id;
-            }
-
-            return false;
-
-        } catch (Exception $e) {
-            ChannableLogger::getInstance()->addLog(
-                'Exception adding image to product: ' . $e->getMessage(),
-                1,
-                $e,
-                ['product_id' => $id_product, 'image_path' => $image_path]
-            );
-            return false;
-        }
-    }
 
     private function addImageToProductWithDebug($id_product, $image_path)
     {
@@ -2579,6 +2509,20 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
                         );
                     }
                 }
+
+                Db::getInstance()->execute('
+                    UPDATE ' . _DB_PREFIX_ . 'image
+                    SET cover = 0
+                    WHERE id_product = ' . (int) $id_product . '
+                    AND id_image != ' . (int) $image->id
+                );
+
+                Db::getInstance()->execute('
+                    UPDATE ' . _DB_PREFIX_ . 'image_shop
+                    SET cover = 0
+                    WHERE id_product = ' . (int) $id_product . '
+                    AND id_image != ' . (int) $image->id
+                );
 
                 $prestashop_relative_path = 'img/p/' . implode('/', str_split((string) $image->id)) . '/' . $image->id . '.jpg';
 
