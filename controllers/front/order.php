@@ -1,19 +1,9 @@
 <?php
 /**
- * Original work: 2007-2025 patworx multimedia GmbH (patworx.de)
- * Modifications: 2025-2026 Moviendote (https://girofeeds.com/)
+ * Girofeeds - Feed management module for PrestaShop
+ * Based on the Channable addon by patworx multimedia GmbH (2007-2025, patworx.de)
  *
- * Based on the Channable PrestaShop addon developed by patworx multimedia GmbH
- *
- * DISCLAIMER
- *
- * Do not edit or add to this file if you wish to upgrade Girofeeds to newer
- * versions in the future. If you wish to customize PrestaShop for your
- * needs please refer to http://www.prestashop.com for more information.
- *
- *  @author    patworx multimedia GmbH <service@patworx.de>
  *  @author    Moviendote <hello@girofeeds.com>
- *  @copyright 2007-2025 patworx multimedia GmbH
  *  @copyright 2025-2026 Moviendote
  *  @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
@@ -122,10 +112,10 @@ class GirofeedsOrderModuleFrontController extends ModuleFrontController
 
                             if (!$have_customer || !isset($customer)) {
                                 $customer = new Customer();
-                                $customer->is_guest = $guest_checkout ? 1 : 0;
+                                $customer->is_guest = $guest_checkout ? true : false;
                                 $customer->passwd = Tools::passwdGen(32, 'ALPHANUMERIC');
                                 $customer->email = $postData->customer->email;
-                                $customer->id_gender = $postData->customer->gender == 'male' ? self::GENDER_MALE : self::GENDER_FEMALE;
+                                $customer->id_gender = (int) ($postData->customer->gender == 'male' ? self::GENDER_MALE : self::GENDER_FEMALE);
                                 $customer->firstname = $this->prepNameForValidation($postData->customer->first_name);
                                 $customer->company = $postData->customer->company;
                                 $customer->lastname = $this->prepNameForValidation($postData->customer->last_name);
@@ -182,7 +172,7 @@ class GirofeedsOrderModuleFrontController extends ModuleFrontController
                                 }
 
                                 $this->context->cart->id_currency = $id_currency;
-                                $this->context->cart->id_lang = Configuration::get('PS_LANG_DEFAULT');
+                                $this->context->cart->id_lang = (int) Configuration::get('PS_LANG_DEFAULT');
                                 $this->context->cart->id_customer = (int) $customer->id;
                                 $this->context->cart->add();
 
@@ -376,11 +366,11 @@ class GirofeedsOrderModuleFrontController extends ModuleFrontController
                                 $order->id_address_invoice = (int) $invoice_address->id;
                                 $order->id_address_delivery = (int) $delivery_address->id;
                                 $order->id_currency = $id_currency;
-                                $order->id_lang = Configuration::get('PS_LANG_DEFAULT');
+                                $order->id_lang = (int) Configuration::get('PS_LANG_DEFAULT');
                                 $order->id_cart = $this->context->cart->id;
                                 $order->reference = $postData->girofeeds_id;
-                                $order->id_shop = (int) Context::getContext()->shop->id;
-                                $order->id_shop_group = (int) Context::getContext()->shop->id_shop_group;
+                                $order->id_shop = (int) $this->context->shop->id;
+                                $order->id_shop_group = (int) $this->context->shop->id_shop_group;
 
                                 $order->secure_key = pSQL(md5(Tools::passwdGen()));
                                 $order->payment = $postData->price->payment_method;
@@ -388,7 +378,7 @@ class GirofeedsOrderModuleFrontController extends ModuleFrontController
 
                                 try {
                                     $currency = new Currency((int) $this->context->cart->id_currency);
-                                    $conversion_rate = $currency->getConversationRate();
+                                    $conversion_rate = $currency->getConversionRate();
                                 } catch (Exception $e) {
                                     $conversion_rate = 0;
                                 }
@@ -424,8 +414,8 @@ class GirofeedsOrderModuleFrontController extends ModuleFrontController
                                 $order->total_shipping = $postData->price->shipping;
 
                                 $order->total_paid = $order->total_paid_tax_incl;
-                                $order->round_mode = Configuration::get('PS_PRICE_ROUND_MODE');
-                                $order->round_type = Configuration::get('PS_ROUND_TYPE');
+                                $order->round_mode = (int) Configuration::get('PS_PRICE_ROUND_MODE');
+                                $order->round_type = (int) Configuration::get('PS_ROUND_TYPE');
 
                                 $order->invoice_date = date('Y-m-d H:i:s');
                                 $order->delivery_date = '0000-00-00 00:00:00';
@@ -525,7 +515,7 @@ class GirofeedsOrderModuleFrontController extends ModuleFrontController
                                     $msg->id_cart = (int) $order->id_cart;
                                     $msg->id_customer = (int) $order->id_customer;
                                     $msg->id_order = (int) $order->id;
-                                    $msg->private = 1;
+                                    $msg->private = true;
                                     $msg->add();
                                 }
                                 if (isset($postData->shipping->pickup_point_name)) {
@@ -604,7 +594,7 @@ class GirofeedsOrderModuleFrontController extends ModuleFrontController
                                         $msg->id_cart = (int) $order->id_cart;
                                         $msg->id_customer = (int) $order->id_customer;
                                         $msg->id_order = (int) $order->id;
-                                        $msg->private = 1;
+                                        $msg->private = true;
                                         $msg->add();
                                     }
                                 }
@@ -631,7 +621,7 @@ class GirofeedsOrderModuleFrontController extends ModuleFrontController
                                         $customer_message->id_customer_thread = $customer_thread->id;
                                         $customer_message->id_employee = 0;
                                         $customer_message->message = $postData->memo;
-                                        $customer_message->private = 1;
+                                        $customer_message->private = true;
                                         $customer_message->add();
                                     }
                                 }
@@ -662,7 +652,7 @@ class GirofeedsOrderModuleFrontController extends ModuleFrontController
                                         $shops = Shop::getShops();
                                         foreach ($shops as $shop) {
                                             $shopID = $shop['id_shop'];
-                                            if ($shopID != (int) Context::getContext()->shop->id) {
+                                            if ($shopID != (int) $this->context->shop->id) {
                                                 StockAvailable::updateQuantity($idProd, $idProdAttr, $qtyToReduce, $shopID);
                                             }
                                         }
@@ -839,7 +829,7 @@ class GirofeedsOrderModuleFrontController extends ModuleFrontController
             );
             if (sizeof($result) > 0) {
                 $product = new Product($result[0]['id']);
-                $attributes = $product->getAttributeCombinationsById($result[0]['id_product_attribute'], (int) Context::getContext()->language->id);
+                $attributes = $product->getAttributeCombinationsById($result[0]['id_product_attribute'], (int) $this->context->language->id);
                 if (isset($attributes[0]['quantity'])) {
                     $product->quantity = (int) $attributes[0]['quantity'];
                     $product->id_product_attribute = (int) $result[0]['id_product_attribute'];
@@ -899,7 +889,7 @@ class GirofeedsOrderModuleFrontController extends ModuleFrontController
         );
         if (sizeof($result) > 0) {
             $product = new Product($result[0]['id']);
-            $attributes = $product->getAttributeCombinationsById($result[0]['id_product_attribute'], (int) Context::getContext()->language->id);
+            $attributes = $product->getAttributeCombinationsById($result[0]['id_product_attribute'], (int) $this->context->language->id);
             if (isset($attributes[0]['quantity'])) {
                 $product->quantity = (int) $attributes[0]['quantity'];
                 $product->id_product_attribute = (int) $result[0]['id_product_attribute'];

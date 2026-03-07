@@ -1,19 +1,9 @@
 <?php
 /**
- * Original work: 2007-2025 patworx multimedia GmbH (patworx.de)
- * Modifications: 2025-2026 Moviendote (https://girofeeds.com/)
+ * Girofeeds - Feed management module for PrestaShop
+ * Based on the Channable addon by patworx multimedia GmbH (2007-2025, patworx.de)
  *
- * Based on the Channable PrestaShop addon developed by patworx multimedia GmbH
- *
- * DISCLAIMER
- *
- * Do not edit or add to this file if you wish to upgrade Girofeeds to newer
- * versions in the future. If you wish to customize PrestaShop for your
- * needs please refer to http://www.prestashop.com for more information.
- *
- *  @author    patworx multimedia GmbH <service@patworx.de>
  *  @author    Moviendote <hello@girofeeds.com>
- *  @copyright 2007-2025 patworx multimedia GmbH
  *  @copyright 2025-2026 Moviendote
  *  @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
@@ -337,7 +327,7 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
             GirofeedsLogger::getInstance()->addLog(
                 'Product updated successfully via API: ' . $id_product,
                 2,
-                false,
+                null,
                 ['updated_fields' => $updated_fields, 'product_id' => $id_product]
             );
 
@@ -564,7 +554,7 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
             ];
         }
 
-        $id_shop = (int) Context::getContext()->shop->id;
+        $id_shop = (int) $this->context->shop->id;
 
         $sql = 'UPDATE ' . _DB_PREFIX_ . 'product_shop
                 SET `' . pSQL($field) . '` = \'' . pSQL($validated_value) . '\'
@@ -643,7 +633,7 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
 
     private function directUpdateProductLang($id_product, $id_lang, $field, $value)
     {
-        $id_shop = (int) Context::getContext()->shop->id;
+        $id_shop = (int) $this->context->shop->id;
 
         $sql = 'UPDATE ' . _DB_PREFIX_ . 'product_lang
                 SET `' . pSQL($field) . '` = \'' . pSQL($value, true) . '\'
@@ -757,7 +747,7 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
             ];
         }
 
-        $id_shop = (int) Context::getContext()->shop->id;
+        $id_shop = (int) $this->context->shop->id;
 
         $sql = 'UPDATE ' . _DB_PREFIX_ . 'product_attribute_shop
                 SET `' . pSQL($field) . '` = \'' . pSQL($validated_value) . '\'
@@ -811,7 +801,7 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
             ];
         }
 
-        $id_shop = (int) Context::getContext()->shop->id;
+        $id_shop = (int) $this->context->shop->id;
 
         $sql = 'SELECT pa.id_product_attribute
                 FROM ' . _DB_PREFIX_ . 'product_attribute pa
@@ -984,7 +974,7 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
 
         if ($field === 'link_rewrite') {
             if (!Validate::isLinkRewrite($value)) {
-                $value = Tools::link_rewrite($value);
+                $value = Tools::str2url($value);
             }
             return pSQL($value);
         }
@@ -1176,7 +1166,7 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
                     GirofeedsLogger::getInstance()->addLog(
                         'Categories updated for product: ' . $product->id,
                         2,
-                        false,
+                        null,
                         [
                             'product_id' => $product->id,
                             'category_ids' => $category_ids,
@@ -1315,17 +1305,16 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
         try {
             $category = new Category();
             $category->id_parent = (int) $id_parent;
-            $category->active = 1;
-            $category->is_root_category = 0;
+            $category->active = true;
+            $category->is_root_category = false;
 
             $languages = Language::getLanguages(false);
             foreach ($languages as $language) {
                 $category->name[$language['id_lang']] = $category_name;
-                $category->link_rewrite[$language['id_lang']] = Tools::link_rewrite($category_name);
+                $category->link_rewrite[$language['id_lang']] = Tools::str2url($category_name);
                 $category->description[$language['id_lang']] = '';
                 $category->meta_title[$language['id_lang']] = $category_name;
                 $category->meta_description[$language['id_lang']] = '';
-                $category->meta_keywords[$language['id_lang']] = '';
             }
 
             $category->position = Category::getLastPosition($id_parent, $category->id);
@@ -1334,7 +1323,7 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
                 GirofeedsLogger::getInstance()->addLog(
                     'Created new category: ' . $category_name . ' (ID: ' . $category->id . ')',
                     2,
-                    false,
+                    null,
                     ['category_name' => $category_name, 'id_parent' => $id_parent]
                 );
 
@@ -1343,7 +1332,7 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
                 GirofeedsLogger::getInstance()->addLog(
                     'Failed to save new category: ' . $category_name,
                     1,
-                    false,
+                    null,
                     ['category_name' => $category_name, 'id_parent' => $id_parent]
                 );
                 return false;
@@ -1358,33 +1347,6 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
             );
             return false;
         }
-    }
-
-    private function findOrCreateCategoryPath($category_path)
-    {
-        if (!is_array($category_path) || empty($category_path)) {
-            return false;
-        }
-
-        $current_parent = 2;
-        $final_category_id = false;
-
-        foreach ($category_path as $category_name) {
-            $category_name = trim($category_name);
-            if (empty($category_name)) {
-                continue;
-            }
-
-            $category_id = $this->findOrCreateCategory($category_name, $current_parent);
-            if (!$category_id) {
-                return false;
-            }
-
-            $current_parent = $category_id;
-            $final_category_id = $category_id;
-        }
-
-        return $final_category_id;
     }
 
     private function findOrCreateCategoryWithDebug($category_name, $id_parent = 2)
@@ -1409,41 +1371,6 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
         return ['id_category' => $new_id, 'created' => ($new_id !== false)];
     }
 
-    private function findOrCreateCategoryPathWithDebug($category_path)
-    {
-        if (!is_array($category_path) || empty($category_path)) {
-            return ['id_category' => false, 'created' => [], 'existing' => []];
-        }
-
-        $current_parent = 2;
-        $final_category_id = false;
-        $created = [];
-        $existing = [];
-
-        foreach ($category_path as $category_name) {
-            $category_name = trim($category_name);
-            if (empty($category_name)) {
-                continue;
-            }
-
-            $result = $this->findOrCreateCategoryWithDebug($category_name, $current_parent);
-            if (!$result['id_category']) {
-                return ['id_category' => false, 'created' => $created, 'existing' => $existing];
-            }
-
-            if ($result['created']) {
-                $created[] = ['id' => $result['id_category'], 'name' => $category_name, 'parent_id' => $current_parent];
-            } else {
-                $existing[] = ['id' => $result['id_category'], 'name' => $category_name, 'parent_id' => $current_parent];
-            }
-
-            $current_parent = $result['id_category'];
-            $final_category_id = $result['id_category'];
-        }
-
-        return ['id_category' => $final_category_id, 'created' => $created, 'existing' => $existing];
-    }
-
     private function handleSpecificPriceUpdate($product, $specific_prices_data)
     {
         $updated_fields = [];
@@ -1458,7 +1385,7 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
                 GirofeedsLogger::getInstance()->addLog(
                     'Cleared all specific prices for product: ' . $product->id,
                     2,
-                    false,
+                    null,
                     ['product_id' => $product->id]
                 );
 
@@ -1490,7 +1417,7 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
                 GirofeedsLogger::getInstance()->addLog(
                     'Updated specific prices for product: ' . $product->id,
                     2,
-                    false,
+                    null,
                     [
                         'product_id' => $product->id,
                         'created_count' => $created_count,
@@ -1547,7 +1474,7 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
             $specificPrice = new SpecificPrice();
 
             $specificPrice->id_product = (int) $product->id;
-            $specificPrice->id_shop = (int) Context::getContext()->shop->id;
+            $specificPrice->id_shop = (int) $this->context->shop->id;
             $specificPrice->id_currency = 0;
             $specificPrice->id_country = 0;
             $specificPrice->id_group = 0;
@@ -1753,26 +1680,12 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
         return ['id_manufacturer' => $new_id, 'created' => ($new_id !== false)];
     }
 
-    private function findOrCreateManufacturer($manufacturer_name)
-    {
-        $sql = 'SELECT id_manufacturer FROM ' . _DB_PREFIX_ . 'manufacturer
-                WHERE name = "' . pSQL($manufacturer_name) . '"';
-
-        $existing_id = Db::getInstance()->getValue($sql);
-
-        if ($existing_id) {
-            return (int) $existing_id;
-        }
-
-        return $this->createManufacturer($manufacturer_name);
-    }
-
     private function createManufacturer($manufacturer_name)
     {
         try {
             $manufacturer = new Manufacturer();
             $manufacturer->name = pSQL($manufacturer_name);
-            $manufacturer->active = 1;
+            $manufacturer->active = true;
 
             $languages = Language::getLanguages(false);
             foreach ($languages as $language) {
@@ -1780,16 +1693,15 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
                 $manufacturer->short_description[$language['id_lang']] = '';
                 $manufacturer->meta_title[$language['id_lang']] = $manufacturer_name;
                 $manufacturer->meta_description[$language['id_lang']] = '';
-                $manufacturer->meta_keywords[$language['id_lang']] = '';
             }
 
             if ($manufacturer->add()) {
-                $manufacturer->associateTo(Context::getContext()->shop->id);
+                $manufacturer->associateTo($this->context->shop->id);
 
                 GirofeedsLogger::getInstance()->addLog(
                     'Created new manufacturer: ' . $manufacturer_name . ' (ID: ' . $manufacturer->id . ')',
                     2,
-                    false,
+                    null,
                     ['manufacturer_name' => $manufacturer_name]
                 );
 
@@ -1798,7 +1710,7 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
                 GirofeedsLogger::getInstance()->addLog(
                     'Failed to save new manufacturer: ' . $manufacturer_name,
                     1,
-                    false,
+                    null,
                     ['manufacturer_name' => $manufacturer_name]
                 );
                 return false;
@@ -1906,23 +1818,22 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
         try {
             $supplier = new Supplier();
             $supplier->name = pSQL($supplier_name);
-            $supplier->active = 1;
+            $supplier->active = true;
 
             $languages = Language::getLanguages(false);
             foreach ($languages as $language) {
                 $supplier->description[$language['id_lang']] = '';
                 $supplier->meta_title[$language['id_lang']] = $supplier_name;
                 $supplier->meta_description[$language['id_lang']] = '';
-                $supplier->meta_keywords[$language['id_lang']] = '';
             }
 
             if ($supplier->add()) {
-                $supplier->associateTo(Context::getContext()->shop->id);
+                $supplier->associateTo($this->context->shop->id);
 
                 GirofeedsLogger::getInstance()->addLog(
                     'Created new supplier: ' . $supplier_name . ' (ID: ' . $supplier->id . ')',
                     2,
-                    false,
+                    null,
                     ['supplier_name' => $supplier_name]
                 );
 
@@ -1931,7 +1842,7 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
                 GirofeedsLogger::getInstance()->addLog(
                     'Failed to save new supplier: ' . $supplier_name,
                     1,
-                    false,
+                    null,
                     ['supplier_name' => $supplier_name]
                 );
                 return false;
@@ -2023,7 +1934,7 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
                 }
             }
 
-            $id_lang = (int) Context::getContext()->language->id;
+            $id_lang = (int) $this->context->language->id;
 
             foreach ($specifications as $feature_name => $feature_value) {
                 if (empty($feature_name) || $feature_value === null) {
@@ -2081,7 +1992,7 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
 
     private function findOrCreateFeature($feature_name)
     {
-        $id_lang = (int) Context::getContext()->language->id;
+        $id_lang = (int) $this->context->language->id;
 
         $sql = 'SELECT f.id_feature FROM ' . _DB_PREFIX_ . 'feature f
                 INNER JOIN ' . _DB_PREFIX_ . 'feature_lang fl ON (f.id_feature = fl.id_feature)
@@ -2110,7 +2021,7 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
                 GirofeedsLogger::getInstance()->addLog(
                     'Created new feature: ' . $feature_name . ' (ID: ' . $feature->id . ')',
                     2,
-                    false,
+                    null,
                     ['feature_name' => $feature_name]
                 );
 
@@ -2132,7 +2043,7 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
 
     private function findOrCreateFeatureValue($id_feature, $value)
     {
-        $id_lang = (int) Context::getContext()->language->id;
+        $id_lang = (int) $this->context->language->id;
         $value_str = is_array($value) ? json_encode($value) : (string) $value;
 
         $sql = 'SELECT fv.id_feature_value FROM ' . _DB_PREFIX_ . 'feature_value fv
@@ -2155,7 +2066,7 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
         try {
             $featureValue = new FeatureValue();
             $featureValue->id_feature = (int) $id_feature;
-            $featureValue->custom = 0;
+            $featureValue->custom = false;
 
             $languages = Language::getLanguages(false);
             foreach ($languages as $language) {
@@ -2294,7 +2205,7 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
                 ];
             }
 
-            $existing_images = Image::getImages((int) Context::getContext()->language->id, (int) $product->id);
+            $existing_images = Image::getImages((int) $this->context->language->id, (int) $product->id);
             $debug['previous_images_count'] = count($existing_images);
 
             foreach ($existing_images as $ei) {
@@ -2342,7 +2253,7 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
                 GirofeedsLogger::getInstance()->addLog(
                     'Image added from Firebase Storage for product: ' . $product->id,
                     2,
-                    false,
+                    null,
                     ['product_id' => $product->id, 'image_url' => $image_url, 'image_id' => $result['image_id']]
                 );
 
@@ -2459,7 +2370,7 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
     private function addImageToProductWithDebug($id_product, $image_path)
     {
         try {
-            $images = Image::getImages((int) Context::getContext()->language->id, (int) $id_product);
+            $images = Image::getImages((int) $this->context->language->id, (int) $id_product);
 
             if (!empty($images)) {
                 foreach ($images as $existing_image) {

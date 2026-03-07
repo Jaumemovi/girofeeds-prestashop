@@ -1,5 +1,22 @@
 # Changelog
 
+### 3.3.15
+- **PrestaShop Marketplace validation fixes**
+- Fixed copyright headers: single @author/@copyright tag across all PHP, JS, and TPL files
+- Replaced `Context::getContext()` with `$this->context` in all controllers and module class
+- Replaced deprecated `Module::isInstalled()`/`Module::isEnabled()` with `Module::getInstanceByName()`
+- Replaced deprecated `Tools::link_rewrite()` with `Tools::str2url()`
+- Added `version_compare()` guard for `Warehouse` class (removed in PS9)
+- Fixed `_PS_VERSION_ < 9` comparison to use `version_compare()`
+- Fixed type issues: `false` → `null` defaults in GirofeedsLogger, boolean property assignments, `(int)` casts on Configuration::get() calls
+- Fixed `GirofeedsProduct::getAttributesForZusammenfassungUse()` to return `[]` instead of `false`
+- Fixed `getConversationRate()` typo → `getConversionRate()` in order controller
+- Fixed missing `mod='girofeeds'` in hookAdminOrder.tpl translation
+- Removed empty `return;` statements and unreachable `break;` after `return`
+- Removed unused methods: `findOrCreateCategoryPath()`, `findOrCreateCategoryPathWithDebug()`, `findOrCreateManufacturer()`
+- Removed deprecated `meta_keywords` assignments (removed in PS9)
+- Fixed PHPDoc parameter name in GirofeedsOrderReturn
+
 ### 4.0.0
 - Complete rebranding from Channable to Girofeeds
 - All class names, DB tables, config keys, hooks, and CSS classes renamed

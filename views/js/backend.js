@@ -1,15 +1,11 @@
-/*
-* Original work: 2016-2025 patworx multimedia GmbH (patworx.de)
-* Modifications: 2025-2026 Moviendote (https://girofeeds.com/)
-*
-* Based on the Channable PrestaShop addon developed by patworx multimedia GmbH
-*
-*  @author patworx multimedia GmbH <service@patworx.de>
-*  @author Moviendote <hello@girofeeds.com>
-*  @copyright  2016-2025 patworx multimedia GmbH
-*  @copyright  2025-2026 Moviendote
-*  @license    Released under the GNU General Public License
-*/
+/**
+ * Girofeeds - Feed management module for PrestaShop
+ * Based on the Channable addon by patworx multimedia GmbH (2016-2025, patworx.de)
+ *
+ *  @author    Moviendote <hello@girofeeds.com>
+ *  @copyright 2025-2026 Moviendote
+ *  @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
+ */
 
 var assigned_counter = 0;
 

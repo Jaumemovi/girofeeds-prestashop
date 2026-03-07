@@ -1,19 +1,9 @@
 <?php
 /**
- * Original work: 2007-2025 patworx multimedia GmbH (patworx.de)
- * Modifications: 2025-2026 Moviendote (https://girofeeds.com/)
+ * Girofeeds - Feed management module for PrestaShop
+ * Based on the Channable addon by patworx multimedia GmbH (2007-2025, patworx.de)
  *
- * Based on the Channable PrestaShop addon developed by patworx multimedia GmbH
- *
- * DISCLAIMER
- *
- * Do not edit or add to this file if you wish to upgrade Girofeeds to newer
- * versions in the future. If you wish to customize PrestaShop for your
- * needs please refer to http://www.prestashop.com for more information.
- *
- *  @author    patworx multimedia GmbH <service@patworx.de>
  *  @author    Moviendote <hello@girofeeds.com>
- *  @copyright 2007-2025 patworx multimedia GmbH
  *  @copyright 2025-2026 Moviendote
  *  @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
@@ -35,7 +25,7 @@ class Girofeeds extends Module
     {
         $this->name = 'girofeeds';
         $this->tab = 'market_place';
-        $this->version = '3.3.14';
+        $this->version = '3.3.15';
         $this->author = 'Moviendote';
         $this->need_instance = 1;
         $this->module_key = 'c083cf4a313f7b7fdf8bc505dc60c3b6';
@@ -354,7 +344,7 @@ class Girofeeds extends Module
         $this->context->smarty->assign('product_api_url', $this->context->link->getModuleLink('girofeeds', 'product', ['key' => $webservice->key, 'id_product' => 'XX_PRODUCT_ID_XX']));
         $this->context->smarty->assign('product_cache_cron_url', $this->context->link->getModuleLink('girofeeds', 'cron', ['buildProductsJson' => '1']));
         $this->context->smarty->assign('girofeeds_key', $webservice->key);
-        $this->context->smarty->assign('lang_id', Context::getContext()->language->id);
+        $this->context->smarty->assign('lang_id', $this->context->language->id);
         $this->context->smarty->assign('form_url', $this->context->link->getAdminLink('AdminModules', false) . '&configure=' . $this->name . '&tab_module=' . $this->tab . '&module_name=' . $this->name . '&token=' . Tools::getAdminTokenLite('AdminModules'));
         $this->context->smarty->assign('order_states', OrderState::getOrderStates((int) Configuration::get('PS_LANG_DEFAULT')));
         $this->context->smarty->assign('order_states_shipped', $this->getOrderStates('shipped'));
@@ -369,21 +359,21 @@ class Girofeeds extends Module
         $this->context->smarty->assign('employees', Employee::getEmployees());
         $this->context->smarty->assign('feedfields_available', GirofeedsFeedfield::getAvailableFieldsFiltered());
         $this->context->smarty->assign('feedfields_assigned', GirofeedsFeedfield::getAllFeedfields());
-        $this->context->smarty->assign('shop_countries', Country::getCountries(Configuration::get('PS_LANG_DEFAULT'), true));
-        $this->context->smarty->assign('carriers', Carrier::getCarriers(Configuration::get('PS_LANG_DEFAULT'), false, false, false, null, Carrier::ALL_CARRIERS));
+        $this->context->smarty->assign('shop_countries', Country::getCountries((int) Configuration::get('PS_LANG_DEFAULT'), true));
+        $this->context->smarty->assign('carriers', Carrier::getCarriers((int) Configuration::get('PS_LANG_DEFAULT'), false, false, false, null, Carrier::ALL_CARRIERS));
         $this->context->smarty->assign('customer_group_assignments', self::getCustomerGroupAssignments());
         $this->context->smarty->assign('marketplace_assignments', self::getMarketplaceAssignments());
         $this->context->smarty->assign('tax_country_assignments', self::getTaxCountryAssignments());
         $this->context->smarty->assign('carrier_assignments', self::getCarrierAssignments());
-        $this->context->smarty->assign('customer_groups', Group::getGroups(Context::getContext()->language->id));
-        try {
+        $this->context->smarty->assign('customer_groups', Group::getGroups($this->context->language->id));
+        if (version_compare(_PS_VERSION_, '9.0.0', '<') && class_exists('Warehouse')) {
             $this->context->smarty->assign('warehouses', Warehouse::getWarehouses());
-        } catch (Exception $e) {
+        } else {
             $this->context->smarty->assign('warehouses', []);
         }
 
         $date_last_modification = filemtime($this->local_path . 'logo.png');
-        $key_theorical = Tools::substr('GIROFEEDS' . md5($date_last_modification), 0, 32);
+        $key_theorical = Tools::substr('GIROFEEDS' . md5((string) $date_last_modification), 0, 32);
         if ($key_theorical == $webservice->key) {
             $this->context->smarty->assign('update_key_message', true);
         }
@@ -706,7 +696,7 @@ class Girofeeds extends Module
         }
         if (Tools::getValue('module_name') == $this->name
             || Tools::getValue('configure') == $this->name) {
-            if (_PS_VERSION_ < 9) {
+            if (version_compare(_PS_VERSION_, '9.0.0', '<')) {
                 $this->context->controller->addJquery();
             }
             $this->context->controller->addJS($this->_path . 'views/js/backend.js');
@@ -888,7 +878,7 @@ class Girofeeds extends Module
                     GirofeedsLogger::getInstance()->addLog(
                         'Sending product update',
                         3,
-                        false,
+                        null,
                         [
                             'params' => [
                                 'id_product' => $stockUpdate['id_product'],
@@ -900,7 +890,7 @@ class Girofeeds extends Module
                         ]
                     );
                     $jsonData['created'] = $product->date_add;
-                    $jsonData['title'] = $product->name[Context::getContext()->language->id];
+                    $jsonData['title'] = $product->name[$this->context->language->id];
                     if ($jsonData['stock'] !== null) {
                         $curlJson = json_encode($jsonData);
                         foreach ($webHookData as $webHook) {
@@ -990,12 +980,10 @@ class Girofeeds extends Module
                 $states = Configuration::get('GIROFEEDS_ORDER_STATES_SHIPPED');
 
                 return explode(',', $states);
-                break;
             case 'SHIPPING_CANCELLED':
                 $states = Configuration::get('GIROFEEDS_ORDER_STATES_CANCELLED');
 
                 return explode(',', $states);
-                break;
         }
 
         return false;
@@ -1327,7 +1315,7 @@ class Girofeeds extends Module
             && count(Shop::getShops(true, null, true)) !== 1) {
             $idCategoryRoot = (int) Configuration::get('PS_ROOT_CATEGORY');
         } elseif (!$context->shop->id) {
-            $idCategoryRoot = (new Shop(Configuration::get('PS_SHOP_DEFAULT')))->id_category;
+            $idCategoryRoot = (new Shop((int) Configuration::get('PS_SHOP_DEFAULT')))->id_category;
         } else {
             $idCategoryRoot = $context->shop->id_category;
         }

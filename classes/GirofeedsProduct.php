@@ -1,19 +1,9 @@
 <?php
 /**
- * Original work: 2007-2025 patworx multimedia GmbH (patworx.de)
- * Modifications: 2025-2026 Moviendote (https://girofeeds.com/)
+ * Girofeeds - Feed management module for PrestaShop
+ * Based on the Channable addon by patworx multimedia GmbH (2007-2025, patworx.de)
  *
- * Based on the Channable PrestaShop addon developed by patworx multimedia GmbH
- *
- * DISCLAIMER
- *
- * Do not edit or add to this file if you wish to upgrade Girofeeds to newer
- * versions in the future. If you wish to customize PrestaShop for your
- * needs please refer to http://www.prestashop.com for more information.
- *
- *  @author    patworx multimedia GmbH <service@patworx.de>
  *  @author    Moviendote <hello@girofeeds.com>
- *  @copyright 2007-2025 patworx multimedia GmbH
  *  @copyright 2025-2026 Moviendote
  *  @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
@@ -66,7 +56,7 @@ class GirofeedsProduct extends Product
 				GROUP BY pa.`id_product_attribute`');
 
         if (!$combinationsResult) {
-            return false;
+            return [];
         }
 
         $to_leave = [
@@ -170,8 +160,8 @@ class GirofeedsProduct extends Product
                 LEFT JOIN `' . _DB_PREFIX_ . 'feature_lang` fl ON (fl.id_feature = fp.id_feature)
                 LEFT JOIN `' . _DB_PREFIX_ . 'feature_value_lang` fvl ON (fp.id_feature_value = fvl.id_feature_value)
 				WHERE fp.`id_product` = ' . (int) $this->id . '
-                  AND (fl.id_lang = ' . (int) Context::getContext()->language->id . ')
-                  AND (fvl.id_lang = ' . (int) Context::getContext()->language->id . ')');
+                  AND (fl.id_lang = ' . (int) $this->context->language->id . ')
+                  AND (fvl.id_lang = ' . (int) $this->context->language->id . ')');
 
         return $result;
     }

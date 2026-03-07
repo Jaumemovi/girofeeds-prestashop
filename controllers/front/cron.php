@@ -1,19 +1,9 @@
 <?php
 /**
- * Original work: 2007-2025 patworx multimedia GmbH (patworx.de)
- * Modifications: 2025-2026 Moviendote (https://girofeeds.com/)
+ * Girofeeds - Feed management module for PrestaShop
+ * Based on the Channable addon by patworx multimedia GmbH (2007-2025, patworx.de)
  *
- * Based on the Channable PrestaShop addon developed by patworx multimedia GmbH
- *
- * DISCLAIMER
- *
- * Do not edit or add to this file if you wish to upgrade Girofeeds to newer
- * versions in the future. If you wish to customize PrestaShop for your
- * needs please refer to http://www.prestashop.com for more information.
- *
- *  @author    patworx multimedia GmbH <service@patworx.de>
  *  @author    Moviendote <hello@girofeeds.com>
- *  @copyright 2007-2025 patworx multimedia GmbH
  *  @copyright 2025-2026 Moviendote
  *  @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
@@ -72,10 +62,10 @@ class GirofeedsCronModuleFrontController extends ModuleFrontController
      */
     protected function buildProductAssocs()
     {
-        GirofeedsCache::fetchCaches('CAT_TREE_', self::$cache_lifetime, (int) Context::getContext()->language->id);
+        GirofeedsCache::fetchCaches('CAT_TREE_', self::$cache_lifetime, (int) $this->context->language->id);
         echo date('Y-m-d H:i:s') . ' Fetching categories<br>';
         $allCategories = [];
-        $allCategoriesTmp = Girofeeds::getSimpleCategoriesWithParentInfos((int) Context::getContext()->language->id);
+        $allCategoriesTmp = Girofeeds::getSimpleCategoriesWithParentInfos((int) $this->context->language->id);
         foreach ($allCategoriesTmp as $allCategoryTmp) {
             if (!isset(GirofeedsCache::$cachedObjectsExist[self::$cache_lifetime]['CAT_TREE_' . $allCategoryTmp['id_category']])) {
                 $allCategories[$allCategoryTmp['id_category']] = $allCategoryTmp;
@@ -95,13 +85,13 @@ class GirofeedsCronModuleFrontController extends ModuleFrontController
             if ($count > self::$maxAssocs) {
                 break;
             }
-            $productCategoriesCache = GirofeedsCache::getByKey('PROD_CATS_' . $id_product, self::$cache_lifetime, true, (int) Context::getContext()->language->id);
+            $productCategoriesCache = GirofeedsCache::getByKey('PROD_CATS_' . $id_product, self::$cache_lifetime, true, (int) $this->context->language->id);
             if ((int) $productCategoriesCache->id == 0) {
                 $categories_ids = $this->fetchCategories($id_product);
                 $product_categories_raw_titles = [];
                 $product_categories_raw = [];
                 foreach (explode(',', $categories_ids) as $category_id) {
-                    $treeCache = GirofeedsCache::getByKey('CAT_TREE_' . (int) $category_id, self::$cache_lifetime, true, (int) Context::getContext()->language->id);
+                    $treeCache = GirofeedsCache::getByKey('CAT_TREE_' . (int) $category_id, self::$cache_lifetime, true, (int) $this->context->language->id);
                     if ((int) $treeCache->id > 0) {
                         $product_categories_raw_title = $treeCache->cache_value;
                     } else {
@@ -153,10 +143,10 @@ class GirofeedsCronModuleFrontController extends ModuleFrontController
      */
     protected function buildCategories()
     {
-        GirofeedsCache::fetchCaches('CAT_TREE_', self::$cache_lifetime, (int) Context::getContext()->language->id);
+        GirofeedsCache::fetchCaches('CAT_TREE_', self::$cache_lifetime, (int) $this->context->language->id);
         echo date('Y-m-d H:i:s') . ' Fetching categories<br>';
         $allCategories = [];
-        $allCategoriesTmp = Girofeeds::getSimpleCategoriesWithParentInfos((int) Context::getContext()->language->id);
+        $allCategoriesTmp = Girofeeds::getSimpleCategoriesWithParentInfos((int) $this->context->language->id);
         foreach ($allCategoriesTmp as $allCategoryTmp) {
             if (!isset(GirofeedsCache::$cachedObjectsExist[self::$cache_lifetime]['CAT_TREE_' . $allCategoryTmp['id_category']])) {
                 $allCategories[$allCategoryTmp['id_category']] = $allCategoryTmp;
@@ -167,7 +157,7 @@ class GirofeedsCronModuleFrontController extends ModuleFrontController
             if ($count > self::$maxCategories) {
                 break;
             }
-            $treeCache = GirofeedsCache::getByKey('CAT_TREE_' . $id_category, self::$cache_lifetime, true, (int) Context::getContext()->language->id);
+            $treeCache = GirofeedsCache::getByKey('CAT_TREE_' . $id_category, self::$cache_lifetime, true, (int) $this->context->language->id);
             if ((int) $treeCache->id == 0) {
                 $tree = $this->getParentsCategories($id_category, $allCategories);
                 $tmp = [];
@@ -223,7 +213,7 @@ class GirofeedsCronModuleFrontController extends ModuleFrontController
                                 'PRODUCT_JSON_' . $json['id'],
                                 false,
                                 true,
-                                (int) Context::getContext()->language->id
+                                (int) $this->context->language->id
                             );
                             $cacheObject->cache_value = json_encode(
                                 $json
@@ -259,7 +249,7 @@ class GirofeedsCronModuleFrontController extends ModuleFrontController
      */
     protected function getParentsCategories($id_category, $allCategories)
     {
-        $cache = GirofeedsCache::getByKey('PARENTS_CAT_' . (int) $id_category, self::$cache_lifetime, true, (int) Context::getContext()->language->id);
+        $cache = GirofeedsCache::getByKey('PARENTS_CAT_' . (int) $id_category, self::$cache_lifetime, true, (int) $this->context->language->id);
         if ((int) $cache->id > 0) {
             return json_decode($cache->cache_value, true);
         } else {
@@ -287,7 +277,7 @@ class GirofeedsCronModuleFrontController extends ModuleFrontController
      */
     protected function fetchCategories($id_product)
     {
-        $cache = GirofeedsCache::getByKey('PRODUCTS_CAT_' . (int) $id_product, self::$cache_lifetime, true, (int) Context::getContext()->language->id);
+        $cache = GirofeedsCache::getByKey('PRODUCTS_CAT_' . (int) $id_product, self::$cache_lifetime, true, (int) $this->context->language->id);
         if ($cache->id > 0) {
             return $cache->cache_value;
         } else {

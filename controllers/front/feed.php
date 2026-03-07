@@ -1,19 +1,9 @@
 <?php
 /**
- * Original work: 2007-2025 patworx multimedia GmbH (patworx.de)
- * Modifications: 2025-2026 Moviendote (https://girofeeds.com/)
+ * Girofeeds - Feed management module for PrestaShop
+ * Based on the Channable addon by patworx multimedia GmbH (2007-2025, patworx.de)
  *
- * Based on the Channable PrestaShop addon developed by patworx multimedia GmbH
- *
- * DISCLAIMER
- *
- * Do not edit or add to this file if you wish to upgrade Girofeeds to newer
- * versions in the future. If you wish to customize PrestaShop for your
- * needs please refer to http://www.prestashop.com for more information.
- *
- *  @author    patworx multimedia GmbH <service@patworx.de>
  *  @author    Moviendote <hello@girofeeds.com>
- *  @copyright 2007-2025 patworx multimedia GmbH
  *  @copyright 2025-2026 Moviendote
  *  @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
@@ -85,12 +75,12 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
         }
 
         $currency = false;
-        if (isset(Context::getContext()->currency)) {
-            $currency = Context::getContext()->currency;
+        if (isset($this->context->currency)) {
+            $currency = $this->context->currency;
             $currency = (string) $currency->iso_code;
         }
 
-        $default_country = new Country(Configuration::get('PS_COUNTRY_DEFAULT'), Configuration::get('PS_LANG_DEFAULT'));
+        $default_country = new Country((int) Configuration::get('PS_COUNTRY_DEFAULT'), (int) Configuration::get('PS_LANG_DEFAULT'));
         $id_zone = (int) $default_country->id_zone;
         $id_carrier = (int) Configuration::get('PS_CARRIER_DEFAULT');
         $default_carrier = new Carrier((int) Configuration::get('PS_CARRIER_DEFAULT'));
@@ -100,7 +90,7 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
             $girofeeds_customer_id = (int) Configuration::get('GIROFEEDS_CUSTOMER_ID');
             if (Customer::getAddressesTotalById($girofeeds_customer_id) > 0) {
                 $customer = new Customer($girofeeds_customer_id);
-                $address = $customer->getAddresses((int) Context::getContext()->language->id);
+                $address = $customer->getAddresses((int) $this->context->language->id);
                 $girofeeds_default_address_id = $address[0]['id_address'];
                 $default_country = new Country((int) $address[0]['id_country']);
                 $id_zone = (int) $default_country->id_zone;
@@ -110,9 +100,9 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
         $shipping_time_available = '';
         $shipping_time_outofstock = '';
 
-        if (Module::isInstalled('advancedeucompliance') && Module::isEnabled('advancedeucompliance')) {
-            $shipping_time_available = Configuration::get('AEUC_LABEL_DELIVERY_TIME_AVAILABLE', (int) Context::getContext()->language->id);
-            $shipping_time_outofstock = Configuration::get('AEUC_LABEL_DELIVERY_TIME_OOS', (int) Context::getContext()->language->id);
+        if (($advEuModule = Module::getInstanceByName('advancedeucompliance')) && $advEuModule->active) {
+            $shipping_time_available = Configuration::get('AEUC_LABEL_DELIVERY_TIME_AVAILABLE', (int) $this->context->language->id);
+            $shipping_time_outofstock = Configuration::get('AEUC_LABEL_DELIVERY_TIME_OOS', (int) $this->context->language->id);
         }
 
         $starttime = microtime(true);
@@ -133,7 +123,7 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
                        p.id_product
                   FROM
                        ' . _DB_PREFIX_ . 'product p
-				  JOIN ' . _DB_PREFIX_ . 'product_shop ps ON (p.id_product = ps.id_product AND ps.id_shop = \'' . (int) Context::getContext()->shop->id . '\' ' . (Configuration::get('GIROFEEDS_DISABLE_INACTIVE') == '1' ? ' AND ps.active = 1' : '') . ')
+				  JOIN ' . _DB_PREFIX_ . 'product_shop ps ON (p.id_product = ps.id_product AND ps.id_shop = \'' . (int) $this->context->shop->id . '\' ' . (Configuration::get('GIROFEEDS_DISABLE_INACTIVE') == '1' ? ' AND ps.active = 1' : '') . ')
                        ' . (Configuration::get('GIROFEEDS_DISABLE_OUT_OF_STOCK') == '1' ?
                            ' LEFT JOIN ' . _DB_PREFIX_ . 'stock_available sav ON (sav.`id_product` = p.`id_product` AND sav.`id_product_attribute` = 0 ' . StockAvailable::addSqlShopRestriction(null, null, 'sav') . ')
                        ' : '') . '
@@ -160,7 +150,7 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
                   FROM
                        ' . _DB_PREFIX_ . 'product p
                   JOIN
-                  	   ' . _DB_PREFIX_ . 'product_shop ps ON (p.id_product = ps.id_product AND ps.id_shop = \'' . (int) Context::getContext()->shop->id . '\' ' . (Configuration::get('GIROFEEDS_DISABLE_INACTIVE') == '1' ? ' AND ps.active = 1' : '') . ')
+                  	   ' . _DB_PREFIX_ . 'product_shop ps ON (p.id_product = ps.id_product AND ps.id_shop = \'' . (int) $this->context->shop->id . '\' ' . (Configuration::get('GIROFEEDS_DISABLE_INACTIVE') == '1' ? ' AND ps.active = 1' : '') . ')
              LEFT JOIN
                        ' . _DB_PREFIX_ . 'product_attribute pa ON (p.id_product = pa.id_product ' . $this->getAttributesDisabled('pa') . ')
              LEFT JOIN
@@ -168,7 +158,7 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
                        ' . (Configuration::get('GIROFEEDS_DISABLE_OUT_OF_STOCK') == '1' ? ' LEFT JOIN ' . _DB_PREFIX_ . 'stock_available pq ON (p.id_product = pq.id_product) ' : '') . '
                  WHERE 
         	           ' . (isset($_GET['manual_product_id']) ? ' p.id_product IN (\'' . pSQL($_GET['manual_product_id']) . '\')  ' : '1') . '
-                   AND (pas.id_shop = \'' . (int) Context::getContext()->shop->id . '\' OR pas.id_shop IS NULL)
+                   AND (pas.id_shop = \'' . (int) $this->context->shop->id . '\' OR pas.id_shop IS NULL)
                        ' . (Configuration::get('GIROFEEDS_DISABLE_INACTIVE') == '1' ? ' AND (ps.active = 1) ' : '') . '
                        ' . (Configuration::get('GIROFEEDS_DISABLE_OUT_OF_STOCK') == '1' ? ' AND (pq.quantity > 0) ' : '') . '
                        ' . $this->sqlHook('product_ids_where') . '
@@ -214,7 +204,7 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
 
         if ($results = Db::getInstance()->ExecuteS($sql)) {
             foreach ($results as $row) {
-                $productJsonCache = GirofeedsCache::getByKey('PRODUCT_JSON_' . $row['id'], self::$cache_lifetime_products, true, (int) Context::getContext()->language->id);
+                $productJsonCache = GirofeedsCache::getByKey('PRODUCT_JSON_' . $row['id'], self::$cache_lifetime_products, true, (int) $this->context->language->id);
                 if ((int) $productJsonCache->id > 0 && !isset($_GET['rebuild_cache']) && $productJsonCache->cache_value != '' && !is_null(json_decode($productJsonCache->cache_value, true))) {
                     $items[] = json_decode(
                         $productJsonCache->cache_value, true
@@ -229,7 +219,7 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
                     if (!array_key_exists('parent_id', $row)) {
                         continue;
                     }
-                    $treeCache = GirofeedsCache::getByKey('CAT_TREE_' . $row['id_category_default'], self::$cache_lifetime_categories, true, (int) Context::getContext()->language->id);
+                    $treeCache = GirofeedsCache::getByKey('CAT_TREE_' . $row['id_category_default'], self::$cache_lifetime_categories, true, (int) $this->context->language->id);
                     if ((int) $treeCache->id > 0) {
                         $row['product_category'] = $treeCache->cache_value;
                     } else {
@@ -243,7 +233,7 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
                         $row['product_category'] = join(' > ', $tmp);
                     }
 
-                    $productCategoriesCache = GirofeedsCache::getByKey('PROD_CATS_' . $row['parent_id'], self::$cache_lifetime_categories, true, (int) Context::getContext()->language->id);
+                    $productCategoriesCache = GirofeedsCache::getByKey('PROD_CATS_' . $row['parent_id'], self::$cache_lifetime_categories, true, (int) $this->context->language->id);
                     if ((int) $productCategoriesCache->id > 0) {
                         $row['categories'] = json_decode($productCategoriesCache->cache_value, true);
                     } else {
@@ -253,7 +243,7 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
                         $product_categories_raw_titles = [];
                         $product_categories_raw = [];
                         foreach (explode(',', $row['categories_ids']) as $category_id) {
-                            $treeCache = GirofeedsCache::getByKey('CAT_TREE_' . (int) $category_id, self::$cache_lifetime_categories, true, (int) Context::getContext()->language->id);
+                            $treeCache = GirofeedsCache::getByKey('CAT_TREE_' . (int) $category_id, self::$cache_lifetime_categories, true, (int) $this->context->language->id);
                             if ((int) $treeCache->id > 0) {
                                 $product_categories_raw_title = $treeCache->cache_value;
                             } else {
@@ -317,7 +307,7 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
                         } else {
                             if ((int) $row['id_product_attribute'] > 0) {
                                 $product = new Product($row['parent_id']);
-                                $combination_array = $product->getAttributeCombinationsById((int) $row['id_product_attribute'], (int) Context::getContext()->language->id);
+                                $combination_array = $product->getAttributeCombinationsById((int) $row['id_product_attribute'], (int) $this->context->language->id);
                                 foreach ($combination_array as $combination) {
                                     $row[strtolower($combination['group_name'])] = $combination['attribute_name'];
                                 }
@@ -345,7 +335,7 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
                         }
                         unset($row['id_supplier']);
                         if ((int) $row['id_product_attribute'] > 0) {
-                            $combination_array = $product->getAttributeCombinationsById((int) $row['id_product_attribute'], (int) Context::getContext()->language->id);
+                            $combination_array = $product->getAttributeCombinationsById((int) $row['id_product_attribute'], (int) $this->context->language->id);
                             foreach ($combination_array as $combination) {
                                 $row[strtolower($combination['group_name'])] = $combination['attribute_name'];
                             }
@@ -377,7 +367,7 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
                         $delivery_price = false;
                     } else {
                         if ($id_carrier == -1) {
-                            $cart = Context::getContext()->cart;
+                            $cart = $this->context->cart;
                             if (isset($girofeeds_default_address_id)) {
                                 $cart->id_customer = $girofeeds_customer_id;
                                 $cart->id_address_delivery = (int) $girofeeds_default_address_id;
@@ -397,8 +387,8 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
                                     $delivery_price = $carrier->getDeliveryPriceByPrice($row['price'], $id_zone);
                                 }
                                 if ($row['stock'] > 0) {
-                                    if (isset($carrier->delay[(int) Context::getContext()->language->id])) {
-                                        $delivery_period = $carrier->delay[(int) Context::getContext()->language->id];
+                                    if (isset($carrier->delay[(int) $this->context->language->id])) {
+                                        $delivery_period = $carrier->delay[(int) $this->context->language->id];
                                     }
                                 }
                             }
@@ -468,19 +458,19 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
                         $specific_prices_obj
                     );
 
-                    if (!isset($row['tax_rate']) || is_null($row['tax_rate'])) {
+                    if (!isset($row['tax_rate'])) {
                         if (isset($girofeeds_default_address_id)) {
-                            Context::getContext()->cart->id_customer = $girofeeds_customer_id;
-                            Context::getContext()->cart->id_address_delivery = (int) $girofeeds_default_address_id;
-                            Context::getContext()->cart->id_address_invoice = (int) $girofeeds_default_address_id;
-                            Context::getContext()->cart->id_guest = 0;
+                            $this->context->cart->id_customer = $girofeeds_customer_id;
+                            $this->context->cart->id_address_delivery = (int) $girofeeds_default_address_id;
+                            $this->context->cart->id_address_invoice = (int) $girofeeds_default_address_id;
+                            $this->context->cart->id_guest = 0;
                         }
 
                         if (!isset($product)) {
                             $product = new Product($row['parent_id']);
                         }
-                        if (Context::getContext()->cart->{Configuration::get('PS_TAX_ADDRESS_TYPE')} != null) {
-                            $address = Context::getContext()->cart->{Configuration::get('PS_TAX_ADDRESS_TYPE')};
+                        if ($this->context->cart->{Configuration::get('PS_TAX_ADDRESS_TYPE')} != null) {
+                            $address = $this->context->cart->{Configuration::get('PS_TAX_ADDRESS_TYPE')};
                             $product->tax_rate = $product->getTaxesRate(new Address($address));
                         } else {
                             try {
@@ -513,11 +503,11 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
                             $row['stock'] = $stock;
                         }
                         $combination_images = $this->getAttributesImages((int) $row['id_product_attribute']);
-                        if ($combination_images && is_array($combination_images) && sizeof($combination_images) > 0) {
+                        if ($combination_images && is_array($combination_images)) {
                             $row['additional_images_raw'] = [];
                             $image_counter = 0;
                             foreach ($combination_images as $img_key => $ci) {
-                                $pfad = $this->context->link->getImageLink($product->link_rewrite[(int) Context::getContext()->language->id], $ci['id']);
+                                $pfad = $this->context->link->getImageLink($product->link_rewrite[(int) $this->context->language->id], $ci['id']);
                                 if ($image_counter == 0) {
                                     $row['image_link'] = $pfad;
                                 } else {
@@ -538,7 +528,7 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
                         $id_image_cover = Product::getCover((int) $row['parent_id']);
                         if (isset($id_image_cover['id_image']) && (int) $id_image_cover['id_image'] > 0) {
                             $product = new Product($row['parent_id']);
-                            $pfad = $this->context->link->getImageLink($product->link_rewrite[(int) Context::getContext()->language->id], $id_image_cover['id_image']);
+                            $pfad = $this->context->link->getImageLink($product->link_rewrite[(int) $this->context->language->id], $id_image_cover['id_image']);
                             $row['image_link'] = $pfad;
                             if (!isset($row['id_image'])) {
                                 $row['id_image'] = $id_image_cover['id_image'];
@@ -547,10 +537,10 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
 
                         if (!$have_combination_images) {
                             $product = new Product($row['parent_id']);
-                            $images = $product->getImages((int) Context::getContext()->language->id);
+                            $images = $product->getImages((int) $this->context->language->id);
                             $image_counter = 0;
                             foreach ($images as $img_key => $imagedata) {
-                                $pfad = $this->context->link->getImageLink($product->link_rewrite[(int) Context::getContext()->language->id], $imagedata['id_image']);
+                                $pfad = $this->context->link->getImageLink($product->link_rewrite[(int) $this->context->language->id], $imagedata['id_image']);
                                 if ($image_counter == 0 && (!isset($row['image_link']) || $row['image_link'] == '')) {
                                     $row['image_link'] = $pfad;
                                 } else {
@@ -602,7 +592,7 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
                     }
 
                     $row['attachments'] = '';
-                    $attachments = Product::getAttachmentsStatic((int) Context::getContext()->language->id, $row['parent_id']);
+                    $attachments = Product::getAttachmentsStatic((int) $this->context->language->id, $row['parent_id']);
                     if (sizeof($attachments) > 0) {
                         foreach ($attachments as $atm) {
                             if (!is_array($row['attachments'])) {
@@ -617,8 +607,7 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
                     }
 
                     try {
-                        if (Module::isInstalled('pm_advancedpack')) {
-                            if (Module::isEnabled('pm_advancedpack')) {
+                        if (($pmAdvPackModule = Module::getInstanceByName('pm_advancedpack')) && $pmAdvPackModule->active) {
                                 if (($row['ean13'] == '' || $row['reference'] == '') && $row['id'] != $row['parent_id']) {
                                     if (!isset($product)) {
                                         $product = new Product($row['parent_id']);
@@ -630,27 +619,26 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
                                         $row['reference'] = $product->reference;
                                     }
                                 }
-                            }
                         }
                     } catch (Exception $e) {
                     }
 
                     try {
-                        if (Module::isInstalled('wkproductcustomfield')) {
-                            if (Module::isEnabled('wkproductcustomfield') && class_exists('WkPcFieldValue') && class_exists('WkPcFieldOptions')) {
+                        if (($wkCustomFieldModule = Module::getInstanceByName('wkproductcustomfield')) && $wkCustomFieldModule->active) {
+                            if (class_exists('WkPcFieldValue') && class_exists('WkPcFieldOptions')) {
                                 $this->objPcFieldValue = new WkPcFieldValue();
                                 $this->objPcFieldOptions = new WkPcFieldOptions();
                                 $methodArgumentsCheckClass = new ReflectionMethod('WkPcFieldValue', 'getCustomFieldInputValue');
                                 if ($methodArgumentsCheckClass->getNumberOfRequiredParameters() == 2) {
                                     $WkProductCustomFields = $this->objPcFieldValue->getCustomFieldInputValue(
-                                        (int) Context::getContext()->language->id,
+                                        (int) $this->context->language->id,
                                         $row['parent_id']
                                     );
                                 } else {
                                     $WkProductCustomFields = $this->objPcFieldValue->getCustomFieldInputValue(
-                                        (int) Context::getContext()->language->id,
+                                        (int) $this->context->language->id,
                                         $row['parent_id'],
-                                        (int) Context::getContext()->shop->id
+                                        (int) $this->context->shop->id
                                     );
                                 }
                                 if (is_array($WkProductCustomFields)) {
@@ -669,7 +657,7 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
                                             if ($dropdownFieldValue) {
                                                 foreach ($dropdownFieldValue as $dropdownvalue) {
                                                     $ddFieldValue = $this->objPcFieldOptions->getOptionsFieldValues(
-                                                        (int) Context::getContext()->language->id,
+                                                        (int) $this->context->language->id,
                                                         $dropdownvalue
                                                     );
                                                     if ($ddFieldValue) {
@@ -684,7 +672,7 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
                                             if ($checkboxFieldValue) {
                                                 foreach ($checkboxFieldValue as $checkboxvalue) {
                                                     $cboxFieldValue = $this->objPcFieldOptions->getOptionsFieldValues(
-                                                        (int) Context::getContext()->language->id,
+                                                        (int) $this->context->language->id,
                                                         $checkboxvalue
                                                     );
                                                     if ($cboxFieldValue) {
@@ -698,7 +686,7 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
                                         } elseif ($fieldValue['input_type'] == 6) {
                                             $radiobuttonFieldValue = $fieldValue['field_value'];
                                             $radiobuttonchoosenvalue = $this->objPcFieldOptions->getOptionsFieldValues(
-                                                (int) Context::getContext()->language->id,
+                                                (int) $this->context->language->id,
                                                 $radiobuttonFieldValue
                                             );
                                             $value = $radiobuttonchoosenvalue;
@@ -923,8 +911,8 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
                 LEFT JOIN `' . _DB_PREFIX_ . 'feature_lang` fl ON (fl.id_feature = fp.id_feature)
                 LEFT JOIN `' . _DB_PREFIX_ . 'feature_value_lang` fvl ON (fp.id_feature_value = fvl.id_feature_value)
 				WHERE fp.`id_product` = ' . (int) $id_product . '
-                  AND (fl.id_lang = ' . (int) Context::getContext()->language->id . ')
-                  AND (fvl.id_lang = ' . (int) Context::getContext()->language->id . ')');
+                  AND (fl.id_lang = ' . (int) $this->context->language->id . ')
+                  AND (fvl.id_lang = ' . (int) $this->context->language->id . ')');
 
         return $result;
     }
@@ -936,7 +924,7 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
      */
     protected function fetchCategories($id_product)
     {
-        $cache = GirofeedsCache::getByKey('PRODUCTS_CAT_' . (int) $id_product, self::$cache_lifetime_categories, true, (int) Context::getContext()->language->id);
+        $cache = GirofeedsCache::getByKey('PRODUCTS_CAT_' . (int) $id_product, self::$cache_lifetime_categories, true, (int) $this->context->language->id);
         if ($cache->id > 0) {
             return $cache->cache_value;
         } else {
@@ -1064,7 +1052,7 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
      */
     protected function getParentsCategories($id_category, $allCategories)
     {
-        $cache = GirofeedsCache::getByKey('PARENTS_CAT_' . (int) $id_category, self::$cache_lifetime_categories, true, (int) Context::getContext()->language->id);
+        $cache = GirofeedsCache::getByKey('PARENTS_CAT_' . (int) $id_category, self::$cache_lifetime_categories, true, (int) $this->context->language->id);
         if ((int) $cache->id > 0) {
             return json_decode($cache->cache_value, true);
         } else {
@@ -1097,12 +1085,12 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
     public function getAllCategories()
     {
         if (!self::$all_categories_cache) {
-            $allCategoriesCache = GirofeedsCache::getByKey('ALL_CATEGORIES_INFOS_' . (int) Context::getContext()->language->id, self::$cache_lifetime_categories, true, (int) Context::getContext()->language->id);
+            $allCategoriesCache = GirofeedsCache::getByKey('ALL_CATEGORIES_INFOS_' . (int) $this->context->language->id, self::$cache_lifetime_categories, true, (int) $this->context->language->id);
             if ((int) $allCategoriesCache->id > 0) {
                 $allCategories = json_decode($allCategoriesCache->cache_value, true);
             } else {
                 $allCategories = [];
-                $allCategoriesTmp = Girofeeds::getSimpleCategoriesWithParentInfos((int) Context::getContext()->language->id);
+                $allCategoriesTmp = Girofeeds::getSimpleCategoriesWithParentInfos((int) $this->context->language->id);
                 foreach ($allCategoriesTmp as $allCategoryTmp) {
                     $allCategories[$allCategoryTmp['id_category']] = $allCategoryTmp;
                 }
@@ -1165,7 +1153,7 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
         if ($this->multiquerymode) {
             $sql = $this->getMultiqueryMode(true, ["'" . $id . "'"], '');
         } else {
-            $default_country = new Country(Configuration::get('PS_COUNTRY_DEFAULT'), Configuration::get('PS_LANG_DEFAULT'));
+            $default_country = new Country((int) Configuration::get('PS_COUNTRY_DEFAULT'), (int) Configuration::get('PS_LANG_DEFAULT'));
             $sql = $this->getDefaultMode(true, ["'" . $id . "'"], '', $default_country);
         }
         $result = Db::getInstance()->executeS($sql);
@@ -1259,7 +1247,7 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
             FROM
                 ' . _DB_PREFIX_ . 'product p
                 	JOIN
-                ' . _DB_PREFIX_ . 'product_shop ps ON (p.id_product = ps.id_product AND ps.id_shop = \'' . (int) Context::getContext()->shop->id . '\' ' . (Configuration::get('GIROFEEDS_DISABLE_INACTIVE') == '1' ? ' AND ps.active = 1' : '') . ')
+                ' . _DB_PREFIX_ . 'product_shop ps ON (p.id_product = ps.id_product AND ps.id_shop = \'' . (int) $this->context->shop->id . '\' ' . (Configuration::get('GIROFEEDS_DISABLE_INACTIVE') == '1' ? ' AND ps.active = 1' : '') . ')
                     LEFT JOIN
                 ' . _DB_PREFIX_ . 'product_attribute pa ON (p.id_product = pa.id_product ' . $this->getAttributesDisabled('pa') . ')
                     LEFT JOIN
@@ -1301,13 +1289,13 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
             	' . (isset($_GET['manual_product_id']) ? ' p.id_product IN (\'' . pSQL($_GET['manual_product_id']) . '\') AND ' : '') . '
                 ' . (($this->sql_optimization_mode == 'id_product_and_attribute') ? ((isset($product_ids_in) && sizeof($product_ids_in) > 0) ? ' if(pa.id_product_attribute IS NULL, p.id_product, concat(p.id_product, \'_\', pa.id_product_attribute)) IN (' . join(', ', $product_ids_in) . ') AND ' : '') : '') . '
                 ' . (($this->sql_optimization_mode == 'id_product') ? ((isset($product_ids_in) && sizeof($product_ids_in) > 0) ? ' p.id_product IN (' . join(', ', $product_ids_in) . ') AND ' : '') : '') . '
-                pl.id_lang = \'' . (int) Context::getContext()->language->id . '\'
+                pl.id_lang = \'' . (int) $this->context->language->id . '\'
                     AND
-                pl.id_shop = \'' . (int) Context::getContext()->shop->id . '\'
+                pl.id_shop = \'' . (int) $this->context->shop->id . '\'
                     AND
                 (tr.id_country = \'' . (int) $default_country->id . '\' OR tr.id_country IS NULL)
                     AND
-                (pas.id_shop = \'' . (int) Context::getContext()->shop->id . '\' OR pas.id_shop IS NULL)
+                (pas.id_shop = \'' . (int) $this->context->shop->id . '\' OR pas.id_shop IS NULL)
                     AND
                 (pal.id_lang = pl.id_lang OR pal.id_lang IS NULL)
                 ' . $this->getPossibleCombinationWhere() . '
@@ -1328,7 +1316,7 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
             FROM
                 ' . _DB_PREFIX_ . 'product p
                 	JOIN
-                ' . _DB_PREFIX_ . 'product_shop ps ON (p.id_product = ps.id_product AND ps.id_shop = \'' . (int) Context::getContext()->shop->id . '\' ' . (Configuration::get('GIROFEEDS_DISABLE_INACTIVE') == '1' ? ' AND ps.active = 1' : '') . ')
+                ' . _DB_PREFIX_ . 'product_shop ps ON (p.id_product = ps.id_product AND ps.id_shop = \'' . (int) $this->context->shop->id . '\' ' . (Configuration::get('GIROFEEDS_DISABLE_INACTIVE') == '1' ? ' AND ps.active = 1' : '') . ')
                     LEFT JOIN
                 ' . _DB_PREFIX_ . 'product_attribute pa ON (p.id_product = pa.id_product ' . $this->getAttributesDisabled('pa') . ')
             WHERE
@@ -1386,11 +1374,11 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
             FROM
                 ' . _DB_PREFIX_ . 'product p
                 	JOIN
-                ' . _DB_PREFIX_ . 'product_shop ps ON (p.id_product = ps.id_product AND ps.id_shop = \'' . (int) Context::getContext()->shop->id . '\' ' . (Configuration::get('GIROFEEDS_DISABLE_INACTIVE') == '1' ? ' AND ps.active = 1' : '') . ')
+                ' . _DB_PREFIX_ . 'product_shop ps ON (p.id_product = ps.id_product AND ps.id_shop = \'' . (int) $this->context->shop->id . '\' ' . (Configuration::get('GIROFEEDS_DISABLE_INACTIVE') == '1' ? ' AND ps.active = 1' : '') . ')
                     LEFT JOIN
                 ' . _DB_PREFIX_ . 'product_attribute pa ON (p.id_product = pa.id_product ' . $this->getAttributesDisabled('pa') . ')
                     LEFT JOIN
-                ' . _DB_PREFIX_ . 'product_attribute_shop pas ON (pa.id_product_attribute = pas.id_product_attribute OR pa.id_product_attribute IS NULL AND (pas.id_shop = \'' . (int) Context::getContext()->shop->id . '\' OR pas.id_shop IS NULL))
+                ' . _DB_PREFIX_ . 'product_attribute_shop pas ON (pa.id_product_attribute = pas.id_product_attribute OR pa.id_product_attribute IS NULL AND (pas.id_shop = \'' . (int) $this->context->shop->id . '\' OR pas.id_shop IS NULL))
                     LEFT JOIN
                 ' . _DB_PREFIX_ . 'stock_available pq ON (p.id_product = pq.id_product AND (pa.id_product_attribute = pq.id_product_attribute OR pa.id_product_attribute IS NULL))
                     LEFT JOIN
@@ -1407,9 +1395,9 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
             	' . (isset($_GET['manual_product_id']) ? ' p.id_product IN (\'' . pSQL($_GET['manual_product_id']) . '\') AND ' : '') . '
                 ' . (($this->sql_optimization_mode == 'id_product_and_attribute') ? ((isset($product_ids_in) && sizeof($product_ids_in) > 0) ? ' if(pa.id_product_attribute IS NULL, p.id_product, concat(p.id_product, \'_\', pa.id_product_attribute)) IN (' . join(', ', $product_ids_in) . ') AND ' : '') : '') . '
                 ' . (($this->sql_optimization_mode == 'id_product') ? ((isset($product_ids_in) && sizeof($product_ids_in) > 0) ? ' p.id_product IN (' . join(', ', $product_ids_in) . ') AND ' : '') : '') . '
-                pl.id_lang = \'' . (int) Context::getContext()->language->id . '\'
+                pl.id_lang = \'' . (int) $this->context->language->id . '\'
                     AND
-                pl.id_shop = \'' . (int) Context::getContext()->shop->id . '\'
+                pl.id_shop = \'' . (int) $this->context->shop->id . '\'
                 ' . (Configuration::get('GIROFEEDS_DISABLE_INACTIVE') == '1' ? ' AND (ps.active = 1) ' : '') . '
                 ' . (Configuration::get('GIROFEEDS_DISABLE_OUT_OF_STOCK') == '1' ? ' AND (' . (Configuration::get('PS_STOCK_MANAGEMENT') ? 'sav.quantity' : 'pq.quantity') . ' > 0) ' : '') . '
             GROUP BY CONCAT(COALESCE(pa.id_product_attribute, \'\'), \'--\', p.id_product)
@@ -1425,7 +1413,7 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
             FROM
                 ' . _DB_PREFIX_ . 'product p
                 	JOIN
-                ' . _DB_PREFIX_ . 'product_shop ps ON (p.id_product = ps.id_product AND ps.id_shop = \'' . (int) Context::getContext()->shop->id . '\' ' . (Configuration::get('GIROFEEDS_DISABLE_INACTIVE') == '1' ? ' AND ps.active = 1' : '') . ')
+                ' . _DB_PREFIX_ . 'product_shop ps ON (p.id_product = ps.id_product AND ps.id_shop = \'' . (int) $this->context->shop->id . '\' ' . (Configuration::get('GIROFEEDS_DISABLE_INACTIVE') == '1' ? ' AND ps.active = 1' : '') . ')
                     LEFT JOIN
                 ' . _DB_PREFIX_ . 'product_attribute pa ON (p.id_product = pa.id_product ' . $this->getAttributesDisabled('pa') . ')
             WHERE
@@ -1444,7 +1432,7 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
             return ' AND pa.id_product_attribute < -1 ';
         }
 
-        return;
+        return '';
     }
 
     protected function sqlHook($location)
@@ -1484,7 +1472,7 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
             ];
         }
 
-        $id_shop = (int) Context::getContext()->shop->id;
+        $id_shop = (int) $this->context->shop->id;
         $now = date('Y-m-d H:i:s');
         $date_7days = date('Y-m-d H:i:s', strtotime('-7 days'));
         $date_30days = date('Y-m-d H:i:s', strtotime('-30 days'));
