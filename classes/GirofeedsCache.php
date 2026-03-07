@@ -1,22 +1,27 @@
 <?php
 /**
- * 2007-2025 patworx.de
+ * Original work: 2007-2025 patworx multimedia GmbH (patworx.de)
+ * Modifications: 2025-2026 Moviendote (https://girofeeds.com/)
+ *
+ * Based on the Channable PrestaShop addon developed by patworx multimedia GmbH
  *
  * DISCLAIMER
  *
- * Do not edit or add to this file if you wish to upgrade AmazonPay to newer
+ * Do not edit or add to this file if you wish to upgrade Girofeeds to newer
  * versions in the future. If you wish to customize PrestaShop for your
  * needs please refer to http://www.prestashop.com for more information.
  *
  *  @author    patworx multimedia GmbH <service@patworx.de>
+ *  @author    Moviendote <hello@girofeeds.com>
  *  @copyright 2007-2025 patworx multimedia GmbH
+ *  @copyright 2025-2026 Moviendote
  *  @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
 if (!defined('_PS_VERSION_')) {
     exit;
 }
 
-class ChannableCache extends ObjectModel
+class GirofeedsCache extends ObjectModel
 {
     public $id;
 
@@ -29,8 +34,8 @@ class ChannableCache extends ObjectModel
     public $date_add;
 
     public static $definition = [
-        'table' => 'channable_cache',
-        'primary' => 'id_channable_cache',
+        'table' => 'girofeeds_cache',
+        'primary' => 'id_girofeeds_cache',
         'fields' => [
             'cache_key' => [
                 'type' => self::TYPE_STRING,
@@ -58,7 +63,7 @@ class ChannableCache extends ObjectModel
      */
     public static function fetchCaches($cache_key_part, $max_age = false, $id_lang = 1)
     {
-        $sql = 'SELECT w.id_channable_cache, w.cache_key, w.date_add FROM `' . _DB_PREFIX_ . 'channable_cache` w
+        $sql = 'SELECT w.id_girofeeds_cache, w.cache_key, w.date_add FROM `' . _DB_PREFIX_ . 'girofeeds_cache` w
                  WHERE w.`cache_key` LIKE \'' . pSQL($cache_key_part) . '%\'
                    AND w.`id_lang` = ' . (int) $id_lang;
         if ($results = Db::getInstance()->ExecuteS($sql)) {
@@ -86,26 +91,26 @@ class ChannableCache extends ObjectModel
      * @param bool $create_new
      * @param int $id_lang
      *
-     * @return ChannableCache|false
+     * @return GirofeedsCache|false
      *
      * @throws PrestaShopDatabaseException
      * @throws PrestaShopException
      */
     public static function getByKey($cache_key, $max_age = false, $create_new = true, $id_lang = 1)
     {
-        $sql = 'SELECT w.id_channable_cache, w.date_add FROM `' . _DB_PREFIX_ . 'channable_cache` w
+        $sql = 'SELECT w.id_girofeeds_cache, w.date_add FROM `' . _DB_PREFIX_ . 'girofeeds_cache` w
                  WHERE w.`cache_key` = \'' . pSQL($cache_key) . '\' AND w.`id_lang` = ' . (int) $id_lang;
-        if (Channable::useCache()) {
+        if (Girofeeds::useCache()) {
             if ($result = Db::getInstance()->getRow($sql)) {
                 if ($max_age) {
                     if (date('YmdHis', strtotime($result['date_add'])) >= date('YmdHis', strtotime('-' . (int) $max_age . ' seconds'))) {
-                        return new self($result['id_channable_cache']);
+                        return new self($result['id_girofeeds_cache']);
                     } else {
-                        $delObj = new self($result['id_channable_cache']);
+                        $delObj = new self($result['id_girofeeds_cache']);
                         $delObj->delete();
                     }
                 } else {
-                    return new self($result['id_channable_cache']);
+                    return new self($result['id_girofeeds_cache']);
                 }
             }
         }
@@ -131,7 +136,7 @@ class ChannableCache extends ObjectModel
      */
     public function save($null_values = false, $auto_date = true)
     {
-        if (Channable::useCache()) {
+        if (Girofeeds::useCache()) {
             return parent::save($null_values, $auto_date);
         }
 

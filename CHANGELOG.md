@@ -1,5 +1,11 @@
 # Changelog
 
+### 4.0.0
+- Complete rebranding from Channable to Girofeeds
+- All class names, DB tables, config keys, hooks, and CSS classes renamed
+- Copyright headers updated (Moviendote as modifications author)
+- Original Channable addon by patworx multimedia GmbH properly attributed
+
 ### 3.3.14
 
 - **Rebranding: Channable renamed to Girofeeds** in module configuration interface
@@ -110,7 +116,7 @@
 
 ### 3.2.9
 
-- New field "Return Tracking Code" at order management to submit to Channable
+- New field "Return Tracking Code" at order management to submit to Girofeeds
 
 ### 3.2.8
 
@@ -153,7 +159,7 @@
 
 ### 3.1.9
 
-- Added additional hooks for order creation (channableOrderCreation)
+- Added additional hooks for order creation (girofeedsOrderCreation)
 - Compatibility Update
 
 ### 3.1.8
@@ -195,7 +201,7 @@
 ### 3.1.0
 
 - Compatibility PrestaShop 8.1
-- Added additional hooks for feed generation (channableSql, channableAddProductToFeedCheck)
+- Added additional hooks for feed generation (girofeedsSql, girofeedsAddProductToFeedCheck)
 
 ### 3.0.2
 
@@ -267,7 +273,7 @@
 
 ### 2.8.0
 
-- Call of specific hook "channableFeed" at the end of each processed feed item. Merchants now can implement own modifications of each item in individual modules. 
+- Call of specific hook "girofeedsFeed" at the end of each processed feed item. Merchants now can implement own modifications of each item in individual modules. 
 
 ### 2.7.9
 
@@ -279,7 +285,7 @@
 
 ### 2.7.7
 
-- Order view extended for PS > 1.7.7.x, new option in backend configuration to view channable order notes in PrestaShop order overview grid
+- Order view extended for PS > 1.7.7.x, new option in backend configuration to view girofeeds order notes in PrestaShop order overview grid
 
 ### 2.7.6
 

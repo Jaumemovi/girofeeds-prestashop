@@ -1,22 +1,27 @@
 <?php
 /**
- * 2007-2025 patworx.de
+ * Original work: 2007-2025 patworx multimedia GmbH (patworx.de)
+ * Modifications: 2025-2026 Moviendote (https://girofeeds.com/)
+ *
+ * Based on the Channable PrestaShop addon developed by patworx multimedia GmbH
  *
  * DISCLAIMER
  *
- * Do not edit or add to this file if you wish to upgrade AmazonPay to newer
+ * Do not edit or add to this file if you wish to upgrade Girofeeds to newer
  * versions in the future. If you wish to customize PrestaShop for your
  * needs please refer to http://www.prestashop.com for more information.
  *
  *  @author    patworx multimedia GmbH <service@patworx.de>
+ *  @author    Moviendote <hello@girofeeds.com>
  *  @copyright 2007-2025 patworx multimedia GmbH
+ *  @copyright 2025-2026 Moviendote
  *  @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
 if (!defined('_PS_VERSION_')) {
     exit;
 }
 
-class ChannableUpdateproductModuleFrontController extends ModuleFrontController
+class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
 {
     protected static $fieldTableMapping = [
         'product' => [
@@ -98,7 +103,7 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
             exit('Method not allowed');
         }
 
-        $postData = Channable::fetchPhpInput();
+        $postData = Girofeeds::fetchPhpInput();
         $jsonData = json_decode($postData, true);
 
         if (json_last_error() !== JSON_ERROR_NONE) {
@@ -124,7 +129,7 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
             header('Content-Type: application/json');
             echo json_encode($result);
         } catch (Exception $e) {
-            ChannableLogger::getInstance()->addLog(
+            GirofeedsLogger::getInstance()->addLog(
                 'Error updating product: ' . $e->getMessage(),
                 1,
                 $e,
@@ -329,15 +334,15 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
         $save_result = $product->save();
 
         if ($save_result) {
-            ChannableLogger::getInstance()->addLog(
+            GirofeedsLogger::getInstance()->addLog(
                 'Product updated successfully via API: ' . $id_product,
                 2,
                 false,
                 ['updated_fields' => $updated_fields, 'product_id' => $id_product]
             );
 
-            if (Channable::useCache()) {
-                ChannableProductsQueue::addToQueueIfNotExists($id_product);
+            if (Girofeeds::useCache()) {
+                GirofeedsProductsQueue::addToQueueIfNotExists($id_product);
             }
 
             $response = [
@@ -374,7 +379,7 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
     {
         $mapping = [];
 
-        $feedfields = ChannableFeedfield::getAllFeedfields();
+        $feedfields = GirofeedsFeedfield::getAllFeedfields();
         if (is_array($feedfields)) {
             foreach ($feedfields as $ff) {
                 $mapping[$ff['field_in_feed']] = [
@@ -504,7 +509,7 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
             return $result;
 
         } catch (Exception $e) {
-            ChannableLogger::getInstance()->addLog(
+            GirofeedsLogger::getInstance()->addLog(
                 'Error updating field: ' . $e->getMessage(),
                 1,
                 $e,
@@ -1063,7 +1068,7 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
             ];
 
         } catch (Exception $e) {
-            ChannableLogger::getInstance()->addLog(
+            GirofeedsLogger::getInstance()->addLog(
                 'Error handling category update: ' . $e->getMessage(),
                 1,
                 $e,
@@ -1168,7 +1173,7 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
                         'value' => implode(', ', $category_ids)
                     ];
 
-                    ChannableLogger::getInstance()->addLog(
+                    GirofeedsLogger::getInstance()->addLog(
                         'Categories updated for product: ' . $product->id,
                         2,
                         false,
@@ -1192,7 +1197,7 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
             ];
 
         } catch (Exception $e) {
-            ChannableLogger::getInstance()->addLog(
+            GirofeedsLogger::getInstance()->addLog(
                 'Error handling categories update: ' . $e->getMessage(),
                 1,
                 $e,
@@ -1238,7 +1243,7 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
 
             return Db::getInstance()->execute($sql);
         } catch (Exception $e) {
-            ChannableLogger::getInstance()->addLog(
+            GirofeedsLogger::getInstance()->addLog(
                 'Error clearing product categories: ' . $e->getMessage(),
                 1,
                 $e,
@@ -1269,7 +1274,7 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
             return true;
 
         } catch (Exception $e) {
-            ChannableLogger::getInstance()->addLog(
+            GirofeedsLogger::getInstance()->addLog(
                 'Error associating product with categories: ' . $e->getMessage(),
                 1,
                 $e,
@@ -1326,7 +1331,7 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
             $category->position = Category::getLastPosition($id_parent, $category->id);
 
             if ($category->save()) {
-                ChannableLogger::getInstance()->addLog(
+                GirofeedsLogger::getInstance()->addLog(
                     'Created new category: ' . $category_name . ' (ID: ' . $category->id . ')',
                     2,
                     false,
@@ -1335,7 +1340,7 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
 
                 return (int) $category->id;
             } else {
-                ChannableLogger::getInstance()->addLog(
+                GirofeedsLogger::getInstance()->addLog(
                     'Failed to save new category: ' . $category_name,
                     1,
                     false,
@@ -1345,7 +1350,7 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
             }
 
         } catch (Exception $e) {
-            ChannableLogger::getInstance()->addLog(
+            GirofeedsLogger::getInstance()->addLog(
                 'Exception creating category: ' . $e->getMessage(),
                 1,
                 $e,
@@ -1450,7 +1455,7 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
             if (empty($specific_prices_data)) {
                 $updated_fields[] = "specific_price (cleared)";
 
-                ChannableLogger::getInstance()->addLog(
+                GirofeedsLogger::getInstance()->addLog(
                     'Cleared all specific prices for product: ' . $product->id,
                     2,
                     false,
@@ -1482,7 +1487,7 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
             if ($created_count > 0) {
                 $updated_fields[] = "specific_price (created {$created_count})";
 
-                ChannableLogger::getInstance()->addLog(
+                GirofeedsLogger::getInstance()->addLog(
                     'Updated specific prices for product: ' . $product->id,
                     2,
                     false,
@@ -1501,7 +1506,7 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
             ];
 
         } catch (Exception $e) {
-            ChannableLogger::getInstance()->addLog(
+            GirofeedsLogger::getInstance()->addLog(
                 'Error handling specific price update: ' . $e->getMessage(),
                 1,
                 $e,
@@ -1524,7 +1529,7 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
 
             return Db::getInstance()->execute($sql);
         } catch (Exception $e) {
-            ChannableLogger::getInstance()->addLog(
+            GirofeedsLogger::getInstance()->addLog(
                 'Error deleting specific prices: ' . $e->getMessage(),
                 1,
                 $e,
@@ -1624,7 +1629,7 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
             }
 
         } catch (Exception $e) {
-            ChannableLogger::getInstance()->addLog(
+            GirofeedsLogger::getInstance()->addLog(
                 'Exception creating specific price: ' . $e->getMessage(),
                 1,
                 $e,
@@ -1717,7 +1722,7 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
             }
 
         } catch (Exception $e) {
-            ChannableLogger::getInstance()->addLog(
+            GirofeedsLogger::getInstance()->addLog(
                 'Error handling brand update: ' . $e->getMessage(),
                 1,
                 $e,
@@ -1781,7 +1786,7 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
             if ($manufacturer->add()) {
                 $manufacturer->associateTo(Context::getContext()->shop->id);
 
-                ChannableLogger::getInstance()->addLog(
+                GirofeedsLogger::getInstance()->addLog(
                     'Created new manufacturer: ' . $manufacturer_name . ' (ID: ' . $manufacturer->id . ')',
                     2,
                     false,
@@ -1790,7 +1795,7 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
 
                 return (int) $manufacturer->id;
             } else {
-                ChannableLogger::getInstance()->addLog(
+                GirofeedsLogger::getInstance()->addLog(
                     'Failed to save new manufacturer: ' . $manufacturer_name,
                     1,
                     false,
@@ -1800,7 +1805,7 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
             }
 
         } catch (Exception $e) {
-            ChannableLogger::getInstance()->addLog(
+            GirofeedsLogger::getInstance()->addLog(
                 'Exception creating manufacturer: ' . $e->getMessage(),
                 1,
                 $e,
@@ -1867,7 +1872,7 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
             }
 
         } catch (Exception $e) {
-            ChannableLogger::getInstance()->addLog(
+            GirofeedsLogger::getInstance()->addLog(
                 'Error handling supplier update: ' . $e->getMessage(),
                 1,
                 $e,
@@ -1914,7 +1919,7 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
             if ($supplier->add()) {
                 $supplier->associateTo(Context::getContext()->shop->id);
 
-                ChannableLogger::getInstance()->addLog(
+                GirofeedsLogger::getInstance()->addLog(
                     'Created new supplier: ' . $supplier_name . ' (ID: ' . $supplier->id . ')',
                     2,
                     false,
@@ -1923,7 +1928,7 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
 
                 return (int) $supplier->id;
             } else {
-                ChannableLogger::getInstance()->addLog(
+                GirofeedsLogger::getInstance()->addLog(
                     'Failed to save new supplier: ' . $supplier_name,
                     1,
                     false,
@@ -1933,7 +1938,7 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
             }
 
         } catch (Exception $e) {
-            ChannableLogger::getInstance()->addLog(
+            GirofeedsLogger::getInstance()->addLog(
                 'Exception creating supplier: ' . $e->getMessage(),
                 1,
                 $e,
@@ -1986,7 +1991,7 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
             ];
 
         } catch (Exception $e) {
-            ChannableLogger::getInstance()->addLog(
+            GirofeedsLogger::getInstance()->addLog(
                 'Error handling stock update: ' . $e->getMessage(),
                 1,
                 $e,
@@ -2059,7 +2064,7 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
             ];
 
         } catch (Exception $e) {
-            ChannableLogger::getInstance()->addLog(
+            GirofeedsLogger::getInstance()->addLog(
                 'Error handling specifications update: ' . $e->getMessage(),
                 1,
                 $e,
@@ -2102,7 +2107,7 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
             }
 
             if ($feature->add()) {
-                ChannableLogger::getInstance()->addLog(
+                GirofeedsLogger::getInstance()->addLog(
                     'Created new feature: ' . $feature_name . ' (ID: ' . $feature->id . ')',
                     2,
                     false,
@@ -2115,7 +2120,7 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
             return false;
 
         } catch (Exception $e) {
-            ChannableLogger::getInstance()->addLog(
+            GirofeedsLogger::getInstance()->addLog(
                 'Exception creating feature: ' . $e->getMessage(),
                 1,
                 $e,
@@ -2164,7 +2169,7 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
             return false;
 
         } catch (Exception $e) {
-            ChannableLogger::getInstance()->addLog(
+            GirofeedsLogger::getInstance()->addLog(
                 'Exception creating feature value: ' . $e->getMessage(),
                 1,
                 $e,
@@ -2238,7 +2243,7 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
             }
 
         } catch (Exception $e) {
-            ChannableLogger::getInstance()->addLog(
+            GirofeedsLogger::getInstance()->addLog(
                 'Error handling supplier reference update: ' . $e->getMessage(),
                 1,
                 $e,
@@ -2334,7 +2339,7 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
                 $debug['position'] = 1;
 
                 $updated_fields[] = ['field' => 'image', 'value' => $result['image_id']];
-                ChannableLogger::getInstance()->addLog(
+                GirofeedsLogger::getInstance()->addLog(
                     'Image added from Firebase Storage for product: ' . $product->id,
                     2,
                     false,
@@ -2358,7 +2363,7 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
             }
 
         } catch (Exception $e) {
-            ChannableLogger::getInstance()->addLog(
+            GirofeedsLogger::getInstance()->addLog(
                 'Error handling image update: ' . $e->getMessage(),
                 1,
                 $e,
@@ -2536,7 +2541,7 @@ class ChannableUpdateproductModuleFrontController extends ModuleFrontController
             return ['image_id' => false, 'error' => 'Failed to add image object', 'prestashop_path' => null];
 
         } catch (Exception $e) {
-            ChannableLogger::getInstance()->addLog(
+            GirofeedsLogger::getInstance()->addLog(
                 'Exception adding image to product: ' . $e->getMessage(),
                 1,
                 $e,

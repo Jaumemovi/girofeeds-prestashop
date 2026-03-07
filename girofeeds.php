@@ -1,22 +1,27 @@
 <?php
 /**
- * 2007-2025 patworx.de
+ * Original work: 2007-2025 patworx multimedia GmbH (patworx.de)
+ * Modifications: 2025-2026 Moviendote (https://girofeeds.com/)
+ *
+ * Based on the Channable PrestaShop addon developed by patworx multimedia GmbH
  *
  * DISCLAIMER
  *
- * Do not edit or add to this file if you wish to upgrade AmazonPay to newer
+ * Do not edit or add to this file if you wish to upgrade Girofeeds to newer
  * versions in the future. If you wish to customize PrestaShop for your
  * needs please refer to http://www.prestashop.com for more information.
  *
  *  @author    patworx multimedia GmbH <service@patworx.de>
+ *  @author    Moviendote <hello@girofeeds.com>
  *  @copyright 2007-2025 patworx multimedia GmbH
+ *  @copyright 2025-2026 Moviendote
  *  @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
 if (!defined('_PS_VERSION_')) {
     exit;
 }
 
-class Channable extends Module
+class Girofeeds extends Module
 {
     protected $config_form = false;
     protected $this_file = __FILE__;
@@ -24,38 +29,38 @@ class Channable extends Module
     protected static $hasWebhooks = 0;
 
     /**
-     * Channable constructor.
+     * Girofeeds constructor.
      */
     public function __construct()
     {
-        $this->name = 'channable';
+        $this->name = 'girofeeds';
         $this->tab = 'market_place';
         $this->version = '3.3.14';
-        $this->author = 'patworx multimedia GmbH';
+        $this->author = 'Moviendote';
         $this->need_instance = 1;
-        $this->module_key = 'b69e52b06d7c14d37ac752c73823c0b3';
+        $this->module_key = 'c083cf4a313f7b7fdf8bc505dc60c3b6';
 
         $this->bootstrap = true;
 
         parent::__construct();
 
-        $this->displayName = $this->l('Channable');
-        $this->description = $this->l('channable Module to connect your shop to channable service');
+        $this->displayName = $this->l('Girofeeds');
+        $this->description = $this->l('Girofeeds feed management module for PrestaShop');
 
         $this->confirmUninstall = $this->l('Are you sure to uninstall this module?');
 
         $this->ps_versions_compliancy = ['min' => '1.5', 'max' => _PS_VERSION_];
 
-        require_once dirname(__FILE__) . '/classes/ChannableCache.php';
-        require_once dirname(__FILE__) . '/classes/ChannableLogger.php';
-        require_once dirname(__FILE__) . '/classes/ChannableProductsQueue.php';
-        require_once dirname(__FILE__) . '/classes/ChannableWebhook.php';
-        require_once dirname(__FILE__) . '/classes/ChannableFeedfield.php';
-        require_once dirname(__FILE__) . '/classes/ChannableCarrier.php';
-        require_once dirname(__FILE__) . '/classes/ChannableOrdersAdditionalData.php';
-        require_once dirname(__FILE__) . '/classes/ChannableProduct.php';
-        require_once dirname(__FILE__) . '/classes/ChannableStockUpdate.php';
-        require_once dirname(__FILE__) . '/classes/ChannableOrderReturn.php';
+        require_once dirname(__FILE__) . '/classes/GirofeedsCache.php';
+        require_once dirname(__FILE__) . '/classes/GirofeedsLogger.php';
+        require_once dirname(__FILE__) . '/classes/GirofeedsProductsQueue.php';
+        require_once dirname(__FILE__) . '/classes/GirofeedsWebhook.php';
+        require_once dirname(__FILE__) . '/classes/GirofeedsFeedfield.php';
+        require_once dirname(__FILE__) . '/classes/GirofeedsCarrier.php';
+        require_once dirname(__FILE__) . '/classes/GirofeedsOrdersAdditionalData.php';
+        require_once dirname(__FILE__) . '/classes/GirofeedsProduct.php';
+        require_once dirname(__FILE__) . '/classes/GirofeedsStockUpdate.php';
+        require_once dirname(__FILE__) . '/classes/GirofeedsOrderReturn.php';
     }
 
     /**
@@ -66,99 +71,99 @@ class Channable extends Module
     public function install()
     {
         $this->enableApi();
-        Configuration::updateValue('CHANNABLE_SQL_OPTIMIZATION_MODE', 1);
-        Configuration::updateValue('CHANNABLE_USE_GUEST_CHECKOUT', 1);
-        Configuration::updateValue('CHANNABLE_MULTIQUERY_MODE', 1);
-        Configuration::updateValue('CHANNABLE_DEFAULT_PAGE_SIZE', 100);
-        Configuration::updateValue('CHANNABLE_COMMENT_AS_NOTE', 1);
-        Configuration::updateValue('CHANNABLE_COMMENT_AS_CUSTOMER_THREAD', 1);
-        Configuration::updateValue('CHANNABLE_LOGLEVEL', 0);
-        Configuration::updateValue('CHANNABLE_DO_CRON_FROM_BACKEND', 1);
-        Configuration::updateValue('CHANNABLE_CRON_BACKEND_TIMEDIFF_MIN', 5);
-        Configuration::updateValue('CHANNABLE_EXTEND_ORDER_VIEW_GRID', 1);
-        Configuration::updateValue('CHANNABLE_EMPLOYEE_ID', 0);
-        Configuration::updateValue('CHANNABLE_USE_FEED_CACHE', 0);
-        Configuration::updateValue('CHANNABLE_DISABLE_VARIANTS', 0);
-        Configuration::updateValue('CHANNABLE_REPLACE_NAME_CHARACTERS', 0);
-        Configuration::updateValue('CHANNABLE_SHOP_STOCK_SYNC', 0);
-        Configuration::updateValue('CHANNABLE_USE_PHONE_FOR_MOBILE', 0);
+        Configuration::updateValue('GIROFEEDS_SQL_OPTIMIZATION_MODE', 1);
+        Configuration::updateValue('GIROFEEDS_USE_GUEST_CHECKOUT', 1);
+        Configuration::updateValue('GIROFEEDS_MULTIQUERY_MODE', 1);
+        Configuration::updateValue('GIROFEEDS_DEFAULT_PAGE_SIZE', 100);
+        Configuration::updateValue('GIROFEEDS_COMMENT_AS_NOTE', 1);
+        Configuration::updateValue('GIROFEEDS_COMMENT_AS_CUSTOMER_THREAD', 1);
+        Configuration::updateValue('GIROFEEDS_LOGLEVEL', 0);
+        Configuration::updateValue('GIROFEEDS_DO_CRON_FROM_BACKEND', 1);
+        Configuration::updateValue('GIROFEEDS_CRON_BACKEND_TIMEDIFF_MIN', 5);
+        Configuration::updateValue('GIROFEEDS_EXTEND_ORDER_VIEW_GRID', 1);
+        Configuration::updateValue('GIROFEEDS_EMPLOYEE_ID', 0);
+        Configuration::updateValue('GIROFEEDS_USE_FEED_CACHE', 0);
+        Configuration::updateValue('GIROFEEDS_DISABLE_VARIANTS', 0);
+        Configuration::updateValue('GIROFEEDS_REPLACE_NAME_CHARACTERS', 0);
+        Configuration::updateValue('GIROFEEDS_SHOP_STOCK_SYNC', 0);
+        Configuration::updateValue('GIROFEEDS_USE_PHONE_FOR_MOBILE', 0);
 
-        Db::getInstance()->execute('CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'channable_webhooks` (
-    `id_channable_webhook` int(11) NOT NULL AUTO_INCREMENT,
+        Db::getInstance()->execute('CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'girofeeds_webhooks` (
+    `id_girofeeds_webhook` int(11) NOT NULL AUTO_INCREMENT,
 	`active` int(11) NOT NULL,
 	`action` VARCHAR(255) NOT NULL,
 	`address` VARCHAR(255) NOT NULL,
     `date_add` DATETIME,
-    PRIMARY KEY  (`id_channable_webhook`)
+    PRIMARY KEY  (`id_girofeeds_webhook`)
 ) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8;');
 
-        Db::getInstance()->execute('CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'channable_feedfields` (
-    `id_channable_feedfields` int(11) NOT NULL AUTO_INCREMENT,
+        Db::getInstance()->execute('CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'girofeeds_feedfields` (
+    `id_girofeeds_feedfields` int(11) NOT NULL AUTO_INCREMENT,
     `tablename` VARCHAR(255) NOT NULL,
 	`field_in_db` VARCHAR(255) NOT NULL,
 	`field_in_feed` VARCHAR(255) NOT NULL,
     `date_add` DATETIME,
-    PRIMARY KEY  (`id_channable_feedfields`)
+    PRIMARY KEY  (`id_girofeeds_feedfields`)
 ) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8;');
 
-        Db::getInstance()->execute('CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'channable_orders_additional_data` (
-    `id_channable_orders_additional_data` int(11) NOT NULL AUTO_INCREMENT,
+        Db::getInstance()->execute('CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'girofeeds_orders_additional_data` (
+    `id_girofeeds_orders_additional_data` int(11) NOT NULL AUTO_INCREMENT,
     `id_order` int(11) NOT NULL,
 	`field_in_post` VARCHAR(255) NOT NULL,
 	`value_in_post` VARCHAR(255) NOT NULL,
     `date_add` DATETIME,
-    PRIMARY KEY  (`id_channable_orders_additional_data`)
+    PRIMARY KEY  (`id_girofeeds_orders_additional_data`)
 ) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8;');
 
-        Db::getInstance()->execute('CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'channable_stock_update` (
-    `id_channable_stock_update` int(11) NOT NULL AUTO_INCREMENT,
+        Db::getInstance()->execute('CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'girofeeds_stock_update` (
+    `id_girofeeds_stock_update` int(11) NOT NULL AUTO_INCREMENT,
     `id_product` int(11) NOT NULL,
     `id_product_attribute` int(11) NOT NULL,
     `working` int(11) NOT NULL,
     `date_add` DATETIME,
-    PRIMARY KEY  (`id_channable_stock_update`)
+    PRIMARY KEY  (`id_girofeeds_stock_update`)
 ) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8;');
 
-        Db::getInstance()->execute('CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'channable_carriers` (
-    `id_channable_carriers` int(11) NOT NULL AUTO_INCREMENT,
+        Db::getInstance()->execute('CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'girofeeds_carriers` (
+    `id_girofeeds_carriers` int(11) NOT NULL AUTO_INCREMENT,
     `entity_type` VARCHAR(15) NOT NULL,
     `id_entity` int(11) NOT NULL,
     `id_carrier` int(11) NOT NULL,
     `date_add` DATETIME,
-    PRIMARY KEY  (`id_channable_carriers`)
+    PRIMARY KEY  (`id_girofeeds_carriers`)
 ) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8;');
 
-        Db::getInstance()->execute('CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'channable_cache` (
-    `id_channable_cache` int(11) NOT NULL AUTO_INCREMENT,
+        Db::getInstance()->execute('CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'girofeeds_cache` (
+    `id_girofeeds_cache` int(11) NOT NULL AUTO_INCREMENT,
     `cache_key` VARCHAR(255) NOT NULL,
     `cache_value` MEDIUMTEXT NOT NULL,
     `id_lang` INT(11) NOT NULL,
     `date_add` DATETIME,
-    PRIMARY KEY  (`id_channable_cache`)
+    PRIMARY KEY  (`id_girofeeds_cache`)
 ) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8;');
 
-        Db::getInstance()->execute('ALTER TABLE `' . _DB_PREFIX_ . 'channable_cache` ADD INDEX (`cache_key`)');
-        Db::getInstance()->execute('ALTER TABLE `' . _DB_PREFIX_ . 'channable_cache` ADD INDEX (`id_lang`)');
+        Db::getInstance()->execute('ALTER TABLE `' . _DB_PREFIX_ . 'girofeeds_cache` ADD INDEX (`cache_key`)');
+        Db::getInstance()->execute('ALTER TABLE `' . _DB_PREFIX_ . 'girofeeds_cache` ADD INDEX (`id_lang`)');
 
-        Db::getInstance()->execute('CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'channable_products_queue` (
-    `id_channable_products_queue` int(11) NOT NULL AUTO_INCREMENT,
+        Db::getInstance()->execute('CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'girofeeds_products_queue` (
+    `id_girofeeds_products_queue` int(11) NOT NULL AUTO_INCREMENT,
     `id_product` int(11) NOT NULL,
     `running` int(2) DEFAULT 0,
     `date_add` DATETIME,
-    PRIMARY KEY  (`id_channable_products_queue`)
+    PRIMARY KEY  (`id_girofeeds_products_queue`)
 ) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8;');
 
-        Db::getInstance()->execute('INSERT INTO  `' . _DB_PREFIX_ . 'channable_products_queue`
+        Db::getInstance()->execute('INSERT INTO  `' . _DB_PREFIX_ . 'girofeeds_products_queue`
         (id_product, running, date_add)
         SELECT id_product, 0, NOW() FROM `' . _DB_PREFIX_ . 'product`
     ');
 
-        Db::getInstance()->execute('CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'channable_order_return` (
-    `id_channable_order_return` int(11) NOT NULL AUTO_INCREMENT,
+        Db::getInstance()->execute('CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'girofeeds_order_return` (
+    `id_girofeeds_order_return` int(11) NOT NULL AUTO_INCREMENT,
     `id_order` int(11) NOT NULL,
     `return_code` VARCHAR(255),
     `date_add` DATETIME,
-    PRIMARY KEY  (`id_channable_order_return`)
+    PRIMARY KEY  (`id_girofeeds_order_return`)
 ) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8;');
 
         return parent::install()
@@ -180,24 +185,24 @@ class Channable extends Module
      */
     public function uninstall()
     {
-        Configuration::deleteByName('CHANNABLE_FEEDMODE_ALTERNATIVE');
-        Configuration::deleteByName('CHANNABLE_SQL_OPTIMIZATION_MODE');
-        Configuration::deleteByName('CHANNABLE_FEEDMODE_SKIP_SHIPPING');
-        Configuration::deleteByName('CHANNABLE_ORDER_WAREHOUSE');
-        Configuration::deleteByName('CHANNABLE_MULTIQUERY_MODE');
-        Configuration::deleteByName('CHANNABLE_DEFAULT_PAGE_SIZE');
-        Configuration::deleteByName('CHANNABLE_COMMENT_AS_NOTE');
-        Configuration::deleteByName('CHANNABLE_COMMENT_AS_CUSTOMER_THREAD');
-        Configuration::deleteByName('CHANNABLE_LOGLEVEL');
-        Configuration::deleteByName('CHANNABLE_DO_CRON_FROM_BACKEND');
-        Configuration::deleteByName('CHANNABLE_CRON_BACKEND_TIMEDIFF_MIN');
-        Configuration::deleteByName('CHANNABLE_EXTEND_ORDER_VIEW_GRID');
-        Configuration::deleteByName('CHANNABLE_EMPLOYEE_ID');
-        Configuration::deleteByName('CHANNABLE_USE_FEED_CACHE');
-        Configuration::deleteByName('CHANNABLE_DISABLE_VARIANTS');
-        Configuration::deleteByName('CHANNABLE_REPLACE_NAME_CHARACTERS');
-        Configuration::deleteByName('CHANNABLE_SHOP_STOCK_SYNC');
-        Configuration::deleteByName('CHANNABLE_USE_PHONE_FOR_MOBILE');
+        Configuration::deleteByName('GIROFEEDS_FEEDMODE_ALTERNATIVE');
+        Configuration::deleteByName('GIROFEEDS_SQL_OPTIMIZATION_MODE');
+        Configuration::deleteByName('GIROFEEDS_FEEDMODE_SKIP_SHIPPING');
+        Configuration::deleteByName('GIROFEEDS_ORDER_WAREHOUSE');
+        Configuration::deleteByName('GIROFEEDS_MULTIQUERY_MODE');
+        Configuration::deleteByName('GIROFEEDS_DEFAULT_PAGE_SIZE');
+        Configuration::deleteByName('GIROFEEDS_COMMENT_AS_NOTE');
+        Configuration::deleteByName('GIROFEEDS_COMMENT_AS_CUSTOMER_THREAD');
+        Configuration::deleteByName('GIROFEEDS_LOGLEVEL');
+        Configuration::deleteByName('GIROFEEDS_DO_CRON_FROM_BACKEND');
+        Configuration::deleteByName('GIROFEEDS_CRON_BACKEND_TIMEDIFF_MIN');
+        Configuration::deleteByName('GIROFEEDS_EXTEND_ORDER_VIEW_GRID');
+        Configuration::deleteByName('GIROFEEDS_EMPLOYEE_ID');
+        Configuration::deleteByName('GIROFEEDS_USE_FEED_CACHE');
+        Configuration::deleteByName('GIROFEEDS_DISABLE_VARIANTS');
+        Configuration::deleteByName('GIROFEEDS_REPLACE_NAME_CHARACTERS');
+        Configuration::deleteByName('GIROFEEDS_SHOP_STOCK_SYNC');
+        Configuration::deleteByName('GIROFEEDS_USE_PHONE_FOR_MOBILE');
 
         return parent::uninstall();
     }
@@ -211,74 +216,74 @@ class Channable extends Module
      */
     public function getContent()
     {
-        if (((bool) Tools::isSubmit('submitChannableModule')) == true) {
+        if (((bool) Tools::isSubmit('submitGirofeedsModule')) == true) {
             $this->postProcess();
         }
         $this->context->smarty->assign('module_dir', $this->_path);
 
-        if (Tools::getValue('submitChannableOrderSettingsModule') == '1') {
+        if (Tools::getValue('submitGirofeedsOrderSettingsModule') == '1') {
             if ($osData = Tools::getValue('os')) {
                 if (isset($osData['shipped'])) {
-                    Configuration::updateValue('CHANNABLE_ORDER_STATES_SHIPPED', join(',', $osData['shipped']));
+                    Configuration::updateValue('GIROFEEDS_ORDER_STATES_SHIPPED', join(',', $osData['shipped']));
                 } else {
-                    Configuration::updateValue('CHANNABLE_ORDER_STATES_SHIPPED', join(',', []));
+                    Configuration::updateValue('GIROFEEDS_ORDER_STATES_SHIPPED', join(',', []));
                 }
                 if (isset($osData['cancelled'])) {
-                    Configuration::updateValue('CHANNABLE_ORDER_STATES_CANCELLED', join(',', $osData['cancelled']));
+                    Configuration::updateValue('GIROFEEDS_ORDER_STATES_CANCELLED', join(',', $osData['cancelled']));
                 } else {
-                    Configuration::updateValue('CHANNABLE_ORDER_STATES_CANCELLED', join(',', []));
+                    Configuration::updateValue('GIROFEEDS_ORDER_STATES_CANCELLED', join(',', []));
                 }
             }
             if (Tools::getValue('os_import') != '') {
-                Configuration::updateValue('CHANNABLE_ORDER_STATE_IMPORT', (int) Tools::getValue('os_import'));
+                Configuration::updateValue('GIROFEEDS_ORDER_STATE_IMPORT', (int) Tools::getValue('os_import'));
             }
             if (Tools::getValue('carrier_import') != '') {
-                Configuration::updateValue('CHANNABLE_ORDER_CARRIER_ID_IMPORT', (int) Tools::getValue('carrier_import'));
+                Configuration::updateValue('GIROFEEDS_ORDER_CARRIER_ID_IMPORT', (int) Tools::getValue('carrier_import'));
             }
             if (Tools::getValue('carrier_import_tax') != '') {
-                Configuration::updateValue('CHANNABLE_ORDER_CARRIER_TAX', (float) str_replace(',', '.', Tools::getValue('carrier_import_tax')));
+                Configuration::updateValue('GIROFEEDS_ORDER_CARRIER_TAX', (float) str_replace(',', '.', Tools::getValue('carrier_import_tax')));
             }
             if (Tools::getValue('order_warehouse') != '') {
-                Configuration::updateValue('CHANNABLE_ORDER_WAREHOUSE', (int) Tools::getValue('order_warehouse'));
+                Configuration::updateValue('GIROFEEDS_ORDER_WAREHOUSE', (int) Tools::getValue('order_warehouse'));
             }
             if (Tools::getValue('comment_as_note') != '') {
-                Configuration::updateValue('CHANNABLE_COMMENT_AS_NOTE', (int) Tools::getValue('comment_as_note'));
+                Configuration::updateValue('GIROFEEDS_COMMENT_AS_NOTE', (int) Tools::getValue('comment_as_note'));
             }
             if (Tools::getValue('comment_as_customer_thread') != '') {
-                Configuration::updateValue('CHANNABLE_COMMENT_AS_CUSTOMER_THREAD', (int) Tools::getValue('comment_as_customer_thread'));
+                Configuration::updateValue('GIROFEEDS_COMMENT_AS_CUSTOMER_THREAD', (int) Tools::getValue('comment_as_customer_thread'));
             }
             if (Tools::getValue('enable_new_order_hook') != '') {
-                Configuration::updateValue('CHANNABLE_ENABLE_NEW_ORDER_HOOK', (int) Tools::getValue('enable_new_order_hook'));
+                Configuration::updateValue('GIROFEEDS_ENABLE_NEW_ORDER_HOOK', (int) Tools::getValue('enable_new_order_hook'));
             }
             if (Tools::getValue('order_view_grid') != '') {
-                Configuration::updateValue('CHANNABLE_EXTEND_ORDER_VIEW_GRID', (int) Tools::getValue('order_view_grid'));
+                Configuration::updateValue('GIROFEEDS_EXTEND_ORDER_VIEW_GRID', (int) Tools::getValue('order_view_grid'));
             }
             if (Tools::getValue('enable_char_replacement') != '') {
-                Configuration::updateValue('CHANNABLE_REPLACE_NAME_CHARACTERS', (int) Tools::getValue('enable_char_replacement'));
+                Configuration::updateValue('GIROFEEDS_REPLACE_NAME_CHARACTERS', (int) Tools::getValue('enable_char_replacement'));
             }
             if (Tools::getValue('send_product_stock_interval') != '') {
-                Configuration::updateValue('CHANNABLE_CRON_BACKEND_TIMEDIFF_MIN', (int) Tools::getValue('send_product_stock_interval'));
+                Configuration::updateValue('GIROFEEDS_CRON_BACKEND_TIMEDIFF_MIN', (int) Tools::getValue('send_product_stock_interval'));
             }
             if (Tools::getValue('employee_id') != '') {
-                Configuration::updateValue('CHANNABLE_EMPLOYEE_ID', (int) Tools::getValue('employee_id'));
+                Configuration::updateValue('GIROFEEDS_EMPLOYEE_ID', (int) Tools::getValue('employee_id'));
             }
             if (Tools::getValue('order_import_name_default') != '') {
-                Configuration::updateValue('CHANNABLE_ORDER_IMPORT_NAME_DEFAULT', (string) Tools::getValue('order_import_name_default'));
+                Configuration::updateValue('GIROFEEDS_ORDER_IMPORT_NAME_DEFAULT', (string) Tools::getValue('order_import_name_default'));
             }
             if (Tools::getValue('enable_shop_stock_sync') != '') {
-                Configuration::updateValue('CHANNABLE_SHOP_STOCK_SYNC', (int) Tools::getValue('enable_shop_stock_sync'));
+                Configuration::updateValue('GIROFEEDS_SHOP_STOCK_SYNC', (int) Tools::getValue('enable_shop_stock_sync'));
             }
             if (Tools::getValue('enable_phone_as_mobile') != '') {
-                Configuration::updateValue('CHANNABLE_USE_PHONE_FOR_MOBILE', (int) Tools::getValue('enable_phone_as_mobile'));
+                Configuration::updateValue('GIROFEEDS_USE_PHONE_FOR_MOBILE', (int) Tools::getValue('enable_phone_as_mobile'));
             }
 
             $this->context->smarty->assign('success_message', $this->l('Settings updated'));
         }
-        if (Tools::getValue('submitChannableAssignmentModule') == '1') {
-            ChannableFeedfield::removeAllFeedfields();
+        if (Tools::getValue('submitGirofeedsAssignmentModule') == '1') {
+            GirofeedsFeedfield::removeAllFeedfields();
             if (Tools::getValue('assigned_fields')) {
                 foreach (Tools::getValue('assigned_fields') as $afKey => $data) {
-                    $assignedField = new ChannableFeedfield();
+                    $assignedField = new GirofeedsFeedfield();
                     $assignedField->tablename = $data['tablename'];
                     $assignedField->field_in_db = $data['field_in_db'];
                     $assignedField->field_in_feed = $data['field_in_feed'];
@@ -288,41 +293,41 @@ class Channable extends Module
             $this->context->smarty->assign('success_message', $this->l('Assigned fields in feed updated'));
         }
 
-        if (Tools::getValue('submitChannableCustomergroupAssignmentModule') == '1') {
+        if (Tools::getValue('submitGirofeedsCustomergroupAssignmentModule') == '1') {
             if (Tools::getValue('cga')) {
                 if (is_array(Tools::getValue('cga'))) {
-                    Configuration::updateValue('CHANNABLE_CUSTOMER_GROUP_ASSIGNMENTS', json_encode(Tools::getValue('cga')));
+                    Configuration::updateValue('GIROFEEDS_CUSTOMER_GROUP_ASSIGNMENTS', json_encode(Tools::getValue('cga')));
                 }
             }
             $this->context->smarty->assign('success_message', $this->l('Assigned customergroups updated'));
         }
 
-        if (Tools::getValue('submitChannableMarketplaceAssignmentModule') == '1') {
+        if (Tools::getValue('submitGirofeedsMarketplaceAssignmentModule') == '1') {
             if (Tools::getValue('msa')) {
                 if (is_array(Tools::getValue('msa'))) {
-                    Configuration::updateValue('CHANNABLE_MARKETPLACE_ASSIGNMENTS', json_encode(Tools::getValue('msa')));
+                    Configuration::updateValue('GIROFEEDS_MARKETPLACE_ASSIGNMENTS', json_encode(Tools::getValue('msa')));
                 }
             }
             $this->context->smarty->assign('success_message', $this->l('Assigned shipping status to marketplace updated'));
         }
 
-        if (Tools::getValue('submitChannableTaxRateModule') == '1') {
+        if (Tools::getValue('submitGirofeedsTaxRateModule') == '1') {
             if (Tools::getValue('coa')) {
                 if (is_array(Tools::getValue('coa'))) {
-                    Configuration::updateValue('CHANNABLE_TAXCOUNTRY_ASSIGNMENTS', json_encode(Tools::getValue('coa')));
+                    Configuration::updateValue('GIROFEEDS_TAXCOUNTRY_ASSIGNMENTS', json_encode(Tools::getValue('coa')));
                 }
             }
             $this->context->smarty->assign('success_message', $this->l('Assigned taxrates to country updated'));
         }
 
-        if (Tools::getValue('submitChannableCarrierAssignmentModule') == '1') {
+        if (Tools::getValue('submitGirofeedsCarrierAssignmentModule') == '1') {
             if (Tools::getValue('csa')) {
                 if (is_array(Tools::getValue('csa'))) {
                     foreach (Tools::getValue('csa') as $csaKey => $carrierAssignment) {
                         if ($csaKey < 0) {
-                            $csaObject = new ChannableCarrier();
+                            $csaObject = new GirofeedsCarrier();
                         } else {
-                            $csaObject = new ChannableCarrier((int) $csaKey);
+                            $csaObject = new GirofeedsCarrier((int) $csaKey);
                         }
                         if ($carrierAssignment['id_entity'] == 0 || trim($carrierAssignment['id_entity']) == '') {
                             if ($csaObject->id) {
@@ -339,31 +344,31 @@ class Channable extends Module
             }
         }
 
-        $webservice = new WebserviceKey((int) Configuration::get('CHANNABLE_API_ID'));
+        $webservice = new WebserviceKey((int) Configuration::get('GIROFEEDS_API_ID'));
 
-        $this->context->smarty->assign('feed_url', $this->context->link->getModuleLink('channable', 'feed', ['key' => $webservice->key, 'limit' => '0,100']));
-        $this->context->smarty->assign('auto_connect_feed_url', $this->context->link->getModuleLink('channable', 'feed'));
-        $this->context->smarty->assign('webhook_url', $this->context->link->getModuleLink('channable', 'webhooks'));
-        $this->context->smarty->assign('order_api_url', $this->context->link->getModuleLink('channable', 'order'));
-        $this->context->smarty->assign('order_api_fetch_url', $this->context->link->getModuleLink('channable', 'order', ['order' => 'XX_ORDER_ID_XX']));
-        $this->context->smarty->assign('product_api_url', $this->context->link->getModuleLink('channable', 'product', ['key' => $webservice->key, 'id_product' => 'XX_PRODUCT_ID_XX']));
-        $this->context->smarty->assign('product_cache_cron_url', $this->context->link->getModuleLink('channable', 'cron', ['buildProductsJson' => '1']));
-        $this->context->smarty->assign('channable_key', $webservice->key);
+        $this->context->smarty->assign('feed_url', $this->context->link->getModuleLink('girofeeds', 'feed', ['key' => $webservice->key, 'limit' => '0,100']));
+        $this->context->smarty->assign('auto_connect_feed_url', $this->context->link->getModuleLink('girofeeds', 'feed'));
+        $this->context->smarty->assign('webhook_url', $this->context->link->getModuleLink('girofeeds', 'webhooks'));
+        $this->context->smarty->assign('order_api_url', $this->context->link->getModuleLink('girofeeds', 'order'));
+        $this->context->smarty->assign('order_api_fetch_url', $this->context->link->getModuleLink('girofeeds', 'order', ['order' => 'XX_ORDER_ID_XX']));
+        $this->context->smarty->assign('product_api_url', $this->context->link->getModuleLink('girofeeds', 'product', ['key' => $webservice->key, 'id_product' => 'XX_PRODUCT_ID_XX']));
+        $this->context->smarty->assign('product_cache_cron_url', $this->context->link->getModuleLink('girofeeds', 'cron', ['buildProductsJson' => '1']));
+        $this->context->smarty->assign('girofeeds_key', $webservice->key);
         $this->context->smarty->assign('lang_id', Context::getContext()->language->id);
         $this->context->smarty->assign('form_url', $this->context->link->getAdminLink('AdminModules', false) . '&configure=' . $this->name . '&tab_module=' . $this->tab . '&module_name=' . $this->name . '&token=' . Tools::getAdminTokenLite('AdminModules'));
         $this->context->smarty->assign('order_states', OrderState::getOrderStates((int) Configuration::get('PS_LANG_DEFAULT')));
         $this->context->smarty->assign('order_states_shipped', $this->getOrderStates('shipped'));
         $this->context->smarty->assign('order_states_cancelled', $this->getOrderStates('cancelled'));
-        $this->context->smarty->assign('order_state_import', Configuration::get('CHANNABLE_ORDER_STATE_IMPORT'));
-        $this->context->smarty->assign('order_carrier_import', Configuration::get('CHANNABLE_ORDER_CARRIER_ID_IMPORT'));
-        $this->context->smarty->assign('carrier_import_tax', (float) Configuration::get('CHANNABLE_ORDER_CARRIER_TAX'));
-        $this->context->smarty->assign('order_warehouse', Configuration::get('CHANNABLE_ORDER_WAREHOUSE'));
-        $this->context->smarty->assign('employee_id', Configuration::get('CHANNABLE_EMPLOYEE_ID'));
-        $this->context->smarty->assign('order_import_name_default', Configuration::get('CHANNABLE_ORDER_IMPORT_NAME_DEFAULT'));
-        $this->context->smarty->assign('enable_shop_stock_sync', Configuration::get('CHANNABLE_SHOP_STOCK_SYNC'));
+        $this->context->smarty->assign('order_state_import', Configuration::get('GIROFEEDS_ORDER_STATE_IMPORT'));
+        $this->context->smarty->assign('order_carrier_import', Configuration::get('GIROFEEDS_ORDER_CARRIER_ID_IMPORT'));
+        $this->context->smarty->assign('carrier_import_tax', (float) Configuration::get('GIROFEEDS_ORDER_CARRIER_TAX'));
+        $this->context->smarty->assign('order_warehouse', Configuration::get('GIROFEEDS_ORDER_WAREHOUSE'));
+        $this->context->smarty->assign('employee_id', Configuration::get('GIROFEEDS_EMPLOYEE_ID'));
+        $this->context->smarty->assign('order_import_name_default', Configuration::get('GIROFEEDS_ORDER_IMPORT_NAME_DEFAULT'));
+        $this->context->smarty->assign('enable_shop_stock_sync', Configuration::get('GIROFEEDS_SHOP_STOCK_SYNC'));
         $this->context->smarty->assign('employees', Employee::getEmployees());
-        $this->context->smarty->assign('feedfields_available', ChannableFeedfield::getAvailableFieldsFiltered());
-        $this->context->smarty->assign('feedfields_assigned', ChannableFeedfield::getAllFeedfields());
+        $this->context->smarty->assign('feedfields_available', GirofeedsFeedfield::getAvailableFieldsFiltered());
+        $this->context->smarty->assign('feedfields_assigned', GirofeedsFeedfield::getAllFeedfields());
         $this->context->smarty->assign('shop_countries', Country::getCountries(Configuration::get('PS_LANG_DEFAULT'), true));
         $this->context->smarty->assign('carriers', Carrier::getCarriers(Configuration::get('PS_LANG_DEFAULT'), false, false, false, null, Carrier::ALL_CARRIERS));
         $this->context->smarty->assign('customer_group_assignments', self::getCustomerGroupAssignments());
@@ -378,7 +383,7 @@ class Channable extends Module
         }
 
         $date_last_modification = filemtime($this->local_path . 'logo.png');
-        $key_theorical = Tools::substr('CHANNABLE' . md5($date_last_modification), 0, 32);
+        $key_theorical = Tools::substr('GIROFEEDS' . md5($date_last_modification), 0, 32);
         if ($key_theorical == $webservice->key) {
             $this->context->smarty->assign('update_key_message', true);
         }
@@ -407,7 +412,7 @@ class Channable extends Module
         $helper->allow_employee_form_lang = Configuration::get('PS_BO_ALLOW_EMPLOYEE_FORM_LANG', 0);
 
         $helper->identifier = $this->identifier;
-        $helper->submit_action = 'submitChannableModule';
+        $helper->submit_action = 'submitGirofeedsModule';
         $helper->currentIndex = $this->context->link->getAdminLink('AdminModules', false)
         . '&configure=' . $this->name . '&tab_module=' . $this->tab . '&module_name=' . $this->name;
         $helper->token = Tools::getAdminTokenLite('AdminModules');
@@ -436,7 +441,7 @@ class Channable extends Module
                     [
                         'type' => 'switch',
                         'desc' => $this->l('Only change this if you have a high powered server.'),
-                        'name' => 'CHANNABLE_MULTIQUERY_MODE',
+                        'name' => 'GIROFEEDS_MULTIQUERY_MODE',
                         'label' => $this->l('Timeout optimized mode'),
                         'is_bool' => true,
                         'values' => [
@@ -455,7 +460,7 @@ class Channable extends Module
                     [
                         'type' => 'switch',
                         'desc' => $this->l('Use this mode if you experience problems with the product feed.'),
-                        'name' => 'CHANNABLE_FEEDMODE_ALTERNATIVE',
+                        'name' => 'GIROFEEDS_FEEDMODE_ALTERNATIVE',
                         'label' => $this->l('Alternative Mode'),
                         'is_bool' => true,
                         'values' => [
@@ -474,7 +479,7 @@ class Channable extends Module
                     [
                         'type' => 'switch',
                         'desc' => $this->l('Use this mode if you experience problems with the SQL server.'),
-                        'name' => 'CHANNABLE_SQL_OPTIMIZATION_MODE',
+                        'name' => 'GIROFEEDS_SQL_OPTIMIZATION_MODE',
                         'label' => $this->l('SQL Optimization Mode'),
                         'is_bool' => true,
                         'values' => [
@@ -493,7 +498,7 @@ class Channable extends Module
                     [
                         'type' => 'switch',
                         'desc' => $this->l(''),
-                        'name' => 'CHANNABLE_DISABLE_OUT_OF_STOCK',
+                        'name' => 'GIROFEEDS_DISABLE_OUT_OF_STOCK',
                         'label' => $this->l('Disable out of stock products'),
                         'is_bool' => true,
                         'values' => [
@@ -512,7 +517,7 @@ class Channable extends Module
                     [
                         'type' => 'switch',
                         'desc' => $this->l(''),
-                        'name' => 'CHANNABLE_DISABLE_INACTIVE',
+                        'name' => 'GIROFEEDS_DISABLE_INACTIVE',
                         'label' => $this->l('Disable inactive products'),
                         'is_bool' => true,
                         'values' => [
@@ -531,7 +536,7 @@ class Channable extends Module
                     [
                         'type' => 'switch',
                         'desc' => $this->l(''),
-                        'name' => 'CHANNABLE_FEEDMODE_SKIP_SHIPPING',
+                        'name' => 'GIROFEEDS_FEEDMODE_SKIP_SHIPPING',
                         'label' => $this->l('Skip shipping calculation'),
                         'is_bool' => true,
                         'values' => [
@@ -550,7 +555,7 @@ class Channable extends Module
                     [
                         'type' => 'switch',
                         'desc' => $this->l(''),
-                        'name' => 'CHANNABLE_DISABLE_VARIANTS',
+                        'name' => 'GIROFEEDS_DISABLE_VARIANTS',
                         'label' => $this->l('Disable variants in feed'),
                         'is_bool' => true,
                         'values' => [
@@ -569,20 +574,20 @@ class Channable extends Module
                     [
                         'type' => 'text',
                         'desc' => $this->l('Customer and corresponding default address used for shipping cost calculation in feed.'),
-                        'name' => 'CHANNABLE_CUSTOMER_ID',
+                        'name' => 'GIROFEEDS_CUSTOMER_ID',
                         'label' => $this->l('Default Customer-ID'),
                         'col' => 3,
                     ],
                     [
                         'type' => 'text',
-                        'name' => 'CHANNABLE_DEFAULT_PAGE_SIZE',
+                        'name' => 'GIROFEEDS_DEFAULT_PAGE_SIZE',
                         'label' => $this->l('Default page size'),
                         'col' => 3,
                     ],
                     [
                         'type' => 'switch',
                         'desc' => $this->l('If inactive, all incoming order will have created a "real" customer account.'),
-                        'name' => 'CHANNABLE_USE_GUEST_CHECKOUT',
+                        'name' => 'GIROFEEDS_USE_GUEST_CHECKOUT',
                         'label' => $this->l('Use Guest checkout'),
                         'is_bool' => true,
                         'values' => [
@@ -601,7 +606,7 @@ class Channable extends Module
                     [
                         'type' => 'switch',
                         'desc' => $this->l('If inactive, all feed data will be created on the fly.'),
-                        'name' => 'CHANNABLE_USE_FEED_CACHE',
+                        'name' => 'GIROFEEDS_USE_FEED_CACHE',
                         'label' => $this->l('Use Feed-Cache'),
                         'is_bool' => true,
                         'values' => [
@@ -620,7 +625,7 @@ class Channable extends Module
                     [
                         'type' => 'select',
                         'desc' => $this->l('Select order status to count orders per product in feed export (orders_last_7days, orders_last_30days, etc.)'),
-                        'name' => 'CHANNABLE_ORDERS_COUNT_STATUS',
+                        'name' => 'GIROFEEDS_ORDERS_COUNT_STATUS',
                         'label' => $this->l('Order status for counting orders'),
                         'options' => [
                             'query' => $this->getOrderStatusesForSelect(),
@@ -642,18 +647,18 @@ class Channable extends Module
     protected function getConfigFormValues()
     {
         return [
-            'CHANNABLE_FEEDMODE_ALTERNATIVE' => Tools::getValue('CHANNABLE_FEEDMODE_ALTERNATIVE', Configuration::get('CHANNABLE_FEEDMODE_ALTERNATIVE') == '1' ? 1 : 0),
-            'CHANNABLE_MULTIQUERY_MODE' => Tools::getValue('CHANNABLE_MULTIQUERY_MODE', Configuration::get('CHANNABLE_MULTIQUERY_MODE') == '1' ? 1 : 0),
-            'CHANNABLE_SQL_OPTIMIZATION_MODE' => Tools::getValue('CHANNABLE_SQL_OPTIMIZATION_MODE', Configuration::get('CHANNABLE_SQL_OPTIMIZATION_MODE') == '1' ? 1 : 0),
-            'CHANNABLE_DISABLE_OUT_OF_STOCK' => Tools::getValue('CHANNABLE_DISABLE_OUT_OF_STOCK', Configuration::get('CHANNABLE_DISABLE_OUT_OF_STOCK') == '1' ? 1 : 0),
-            'CHANNABLE_DISABLE_INACTIVE' => Tools::getValue('CHANNABLE_DISABLE_INACTIVE', Configuration::get('CHANNABLE_DISABLE_INACTIVE') == '1' ? 1 : 0),
-            'CHANNABLE_FEEDMODE_SKIP_SHIPPING' => Tools::getValue('CHANNABLE_FEEDMODE_SKIP_SHIPPING', Configuration::get('CHANNABLE_FEEDMODE_SKIP_SHIPPING') == '1' ? 1 : 0),
-            'CHANNABLE_DISABLE_VARIANTS' => Tools::getValue('CHANNABLE_DISABLE_VARIANTS', Configuration::get('CHANNABLE_DISABLE_VARIANTS') == '1' ? 1 : 0),
-            'CHANNABLE_CUSTOMER_ID' => Tools::getValue('CHANNABLE_CUSTOMER_ID', Configuration::get('CHANNABLE_CUSTOMER_ID')),
-            'CHANNABLE_DEFAULT_PAGE_SIZE' => Tools::getValue('CHANNABLE_DEFAULT_PAGE_SIZE', Configuration::get('CHANNABLE_DEFAULT_PAGE_SIZE')),
-            'CHANNABLE_USE_GUEST_CHECKOUT' => Tools::getValue('CHANNABLE_USE_GUEST_CHECKOUT', Configuration::get('CHANNABLE_USE_GUEST_CHECKOUT') == '1' ? 1 : 0),
-            'CHANNABLE_USE_FEED_CACHE' => Tools::getValue('CHANNABLE_USE_FEED_CACHE', Configuration::get('CHANNABLE_USE_FEED_CACHE') == '1' ? 1 : 0),
-            'CHANNABLE_ORDERS_COUNT_STATUS' => Tools::getValue('CHANNABLE_ORDERS_COUNT_STATUS', Configuration::get('CHANNABLE_ORDERS_COUNT_STATUS')),
+            'GIROFEEDS_FEEDMODE_ALTERNATIVE' => Tools::getValue('GIROFEEDS_FEEDMODE_ALTERNATIVE', Configuration::get('GIROFEEDS_FEEDMODE_ALTERNATIVE') == '1' ? 1 : 0),
+            'GIROFEEDS_MULTIQUERY_MODE' => Tools::getValue('GIROFEEDS_MULTIQUERY_MODE', Configuration::get('GIROFEEDS_MULTIQUERY_MODE') == '1' ? 1 : 0),
+            'GIROFEEDS_SQL_OPTIMIZATION_MODE' => Tools::getValue('GIROFEEDS_SQL_OPTIMIZATION_MODE', Configuration::get('GIROFEEDS_SQL_OPTIMIZATION_MODE') == '1' ? 1 : 0),
+            'GIROFEEDS_DISABLE_OUT_OF_STOCK' => Tools::getValue('GIROFEEDS_DISABLE_OUT_OF_STOCK', Configuration::get('GIROFEEDS_DISABLE_OUT_OF_STOCK') == '1' ? 1 : 0),
+            'GIROFEEDS_DISABLE_INACTIVE' => Tools::getValue('GIROFEEDS_DISABLE_INACTIVE', Configuration::get('GIROFEEDS_DISABLE_INACTIVE') == '1' ? 1 : 0),
+            'GIROFEEDS_FEEDMODE_SKIP_SHIPPING' => Tools::getValue('GIROFEEDS_FEEDMODE_SKIP_SHIPPING', Configuration::get('GIROFEEDS_FEEDMODE_SKIP_SHIPPING') == '1' ? 1 : 0),
+            'GIROFEEDS_DISABLE_VARIANTS' => Tools::getValue('GIROFEEDS_DISABLE_VARIANTS', Configuration::get('GIROFEEDS_DISABLE_VARIANTS') == '1' ? 1 : 0),
+            'GIROFEEDS_CUSTOMER_ID' => Tools::getValue('GIROFEEDS_CUSTOMER_ID', Configuration::get('GIROFEEDS_CUSTOMER_ID')),
+            'GIROFEEDS_DEFAULT_PAGE_SIZE' => Tools::getValue('GIROFEEDS_DEFAULT_PAGE_SIZE', Configuration::get('GIROFEEDS_DEFAULT_PAGE_SIZE')),
+            'GIROFEEDS_USE_GUEST_CHECKOUT' => Tools::getValue('GIROFEEDS_USE_GUEST_CHECKOUT', Configuration::get('GIROFEEDS_USE_GUEST_CHECKOUT') == '1' ? 1 : 0),
+            'GIROFEEDS_USE_FEED_CACHE' => Tools::getValue('GIROFEEDS_USE_FEED_CACHE', Configuration::get('GIROFEEDS_USE_FEED_CACHE') == '1' ? 1 : 0),
+            'GIROFEEDS_ORDERS_COUNT_STATUS' => Tools::getValue('GIROFEEDS_ORDERS_COUNT_STATUS', Configuration::get('GIROFEEDS_ORDERS_COUNT_STATUS')),
         ];
     }
 
@@ -682,22 +687,22 @@ class Channable extends Module
     public function hookDisplaybackOfficeHeader()
     {
         $doCron = false;
-        if (Configuration::get('CHANNABLE_DO_CRON_FROM_BACKEND') == '1') {
-            $cronRun = Configuration::get('CHANNABLE_LAST_CRONRUN');
+        if (Configuration::get('GIROFEEDS_DO_CRON_FROM_BACKEND') == '1') {
+            $cronRun = Configuration::get('GIROFEEDS_LAST_CRONRUN');
             if ($cronRun == '') {
                 $doCron = true;
             } else {
                 $current_date = new DateTime('now');
                 $cron_date = new DateTime($cronRun);
                 $diff = $current_date->diff($cron_date);
-                if ($diff->format('%i') >= (int) Configuration::get('CHANNABLE_CRON_BACKEND_TIMEDIFF_MIN')) {
+                if ($diff->format('%i') >= (int) Configuration::get('GIROFEEDS_CRON_BACKEND_TIMEDIFF_MIN')) {
                     $doCron = true;
                 }
             }
         }
         if ($doCron) {
             $this->sendProductUpdate();
-            Configuration::updateValue('CHANNABLE_LAST_CRONRUN', date('Y-m-d H:i:s'));
+            Configuration::updateValue('GIROFEEDS_LAST_CRONRUN', date('Y-m-d H:i:s'));
         }
         if (Tools::getValue('module_name') == $this->name
             || Tools::getValue('configure') == $this->name) {
@@ -718,7 +723,7 @@ class Channable extends Module
     public function hookActionUpdateQuantity($params)
     {
         if (isset($params['id_product'])) {
-            ChannableProductsQueue::addToQueueIfNotExists((int) $params['id_product']);
+            GirofeedsProductsQueue::addToQueueIfNotExists((int) $params['id_product']);
         }
 
         $sql = 'SELECT product_attribute_shop.id_product_attribute
@@ -745,7 +750,7 @@ class Channable extends Module
     public function hookActionProductUpdate($params)
     {
         if (isset($params['id_product'])) {
-            ChannableProductsQueue::addToQueueIfNotExists((int) $params['id_product']);
+            GirofeedsProductsQueue::addToQueueIfNotExists((int) $params['id_product']);
         }
 
         $sql = 'SELECT product_attribute_shop.id_product_attribute
@@ -771,7 +776,7 @@ class Channable extends Module
     public function hookActionProductAdd($params)
     {
         if (isset($params['id_product'])) {
-            ChannableProductsQueue::addToQueueIfNotExists((int) $params['id_product']);
+            GirofeedsProductsQueue::addToQueueIfNotExists((int) $params['id_product']);
         }
     }
 
@@ -784,13 +789,13 @@ class Channable extends Module
     public function hookActionProductAttributeUpdate($params)
     {
         if (isset($params['id_product'])) {
-            ChannableProductsQueue::addToQueueIfNotExists((int) $params['id_product']);
+            GirofeedsProductsQueue::addToQueueIfNotExists((int) $params['id_product']);
         }
         if (self::$hasWebhooks == 1) {
             $this->storeProductUpdate($params);
         } else {
             if (self::$hasWebhooks == 0) {
-                $webHookData = ChannableWebhook::getAllWebhooks();
+                $webHookData = GirofeedsWebhook::getAllWebhooks();
                 if (sizeof($webHookData) > 0) {
                     self::$hasWebhooks = 1;
                     $this->storeProductUpdate($params);
@@ -812,14 +817,14 @@ class Channable extends Module
     {
         if (isset($params['id_product_attribute']) && $params['id_product_attribute'] > 0) {
             $combination = new Combination((int) $params['id_product_attribute']);
-            $check = ChannableStockUpdate::existsByIdProduct((int) $combination->id_product, (int) $params['id_product_attribute']);
+            $check = GirofeedsStockUpdate::existsByIdProduct((int) $combination->id_product, (int) $params['id_product_attribute']);
             $id_product = (int) $combination->id_product;
         } else {
-            $check = ChannableStockUpdate::existsByIdProduct((int) $params['id_product']);
+            $check = GirofeedsStockUpdate::existsByIdProduct((int) $params['id_product']);
             $id_product = (int) $params['id_product'];
         }
         if (!$check) {
-            $stockUpdate = new ChannableStockUpdate();
+            $stockUpdate = new GirofeedsStockUpdate();
             $stockUpdate->id_product = (int) $id_product;
             if (isset($params['id_product_attribute']) && $params['id_product_attribute'] > 0) {
                 $stockUpdate->id_product_attribute = (int) $params['id_product_attribute'];
@@ -837,7 +842,7 @@ class Channable extends Module
      */
     public function sendProductUpdate()
     {
-        $webHookData = ChannableWebhook::getAllWebhooks();
+        $webHookData = GirofeedsWebhook::getAllWebhooks();
         if (sizeof($webHookData) > 0) {
             $jsonData = [
                 'id' => '',
@@ -848,10 +853,10 @@ class Channable extends Module
                 'stock' => '',
                 'title' => '',
             ];
-            $stockUpdates = ChannableStockUpdate::getQualifiedUpdates();
+            $stockUpdates = GirofeedsStockUpdate::getQualifiedUpdates();
             if (sizeof($stockUpdates) > 0) {
                 foreach ($stockUpdates as $stockUpdate) {
-                    $stockUpdateObject = new ChannableStockUpdate($stockUpdate['id_channable_stock_update']);
+                    $stockUpdateObject = new GirofeedsStockUpdate($stockUpdate['id_girofeeds_stock_update']);
                     $stockUpdateObject->working = 1;
                     $stockUpdateObject->save();
                     if ($stockUpdate['id_product_attribute'] > 0) {
@@ -880,7 +885,7 @@ class Channable extends Module
                         $jsonData['price'] = $product->price;
                         $stockResult = $jsonData['stock'] = StockAvailable::getQuantityAvailableByProduct($stockUpdate['id_product']);
                     }
-                    ChannableLogger::getInstance()->addLog(
+                    GirofeedsLogger::getInstance()->addLog(
                         'Sending product update',
                         3,
                         false,
@@ -934,8 +939,8 @@ class Channable extends Module
 
         $webserviceKey = new WebserviceKey();
         $webserviceKey->active = true;
-        $webserviceKey->key = Tools::substr('CHANNABLE' . md5(_COOKIE_KEY_ . time()), 0, 32);
-        $webserviceKey->description = $this->l('Webservice API Key for channable created by plugin');
+        $webserviceKey->key = Tools::substr('GIROFEEDS' . md5(_COOKIE_KEY_ . time()), 0, 32);
+        $webserviceKey->description = $this->l('Webservice API Key for girofeeds created by plugin');
         $webserviceKey->save();
 
         $permissions_to_set = [];
@@ -956,7 +961,7 @@ class Channable extends Module
         }
 
         WebserviceKey::setPermissionForAccount($webserviceKey->id, $permissions_to_set);
-        Configuration::updateValue('CHANNABLE_API_ID', (int) $webserviceKey->id);
+        Configuration::updateValue('GIROFEEDS_API_ID', (int) $webserviceKey->id);
 
         return true;
     }
@@ -968,7 +973,7 @@ class Channable extends Module
      */
     public function getOrderStates($type)
     {
-        $states = Configuration::get('CHANNABLE_ORDER_STATES_' . Tools::strtoupper($type));
+        $states = Configuration::get('GIROFEEDS_ORDER_STATES_' . Tools::strtoupper($type));
 
         return explode(',', $states);
     }
@@ -978,16 +983,16 @@ class Channable extends Module
      *
      * @return false|string[]
      */
-    public static function getChannableOrderStates($type)
+    public static function getGirofeedsOrderStates($type)
     {
         switch ($type) {
             case 'SHIPPING_SHIPPED':
-                $states = Configuration::get('CHANNABLE_ORDER_STATES_SHIPPED');
+                $states = Configuration::get('GIROFEEDS_ORDER_STATES_SHIPPED');
 
                 return explode(',', $states);
                 break;
             case 'SHIPPING_CANCELLED':
-                $states = Configuration::get('CHANNABLE_ORDER_STATES_CANCELLED');
+                $states = Configuration::get('GIROFEEDS_ORDER_STATES_CANCELLED');
 
                 return explode(',', $states);
                 break;
@@ -1025,15 +1030,15 @@ class Channable extends Module
             return;
         }
         $this->context->smarty->assign('isHigher176', self::isPrestaShop177OrHigherStatic());
-        if (Tools::getValue('channable_return_code')) {
-            ChannableOrderReturn::addOrUpdateToOrder(
+        if (Tools::getValue('girofeeds_return_code')) {
+            GirofeedsOrderReturn::addOrUpdateToOrder(
                 (int) $params['id_order'],
-                Tools::getValue('channable_return_code')
+                Tools::getValue('girofeeds_return_code')
             );
         }
-        $additionalData = ChannableOrdersAdditionalData::getByOrderId($params['id_order']);
+        $additionalData = GirofeedsOrdersAdditionalData::getByOrderId($params['id_order']);
         if ($additionalData) {
-            $order_return_code = ChannableOrderReturn::getByOrderId((int) $params['id_order']);
+            $order_return_code = GirofeedsOrderReturn::getByOrderId((int) $params['id_order']);
             $this->context->smarty->assign('orderReturnCode', $order_return_code ? $order_return_code->return_code : false);
             $this->context->smarty->assign('additionalData', $additionalData);
 
@@ -1048,14 +1053,14 @@ class Channable extends Module
      */
     public function hookActionAdminOrdersListingFieldsModifier(array $params)
     {
-        if (Configuration::get('CHANNABLE_EXTEND_ORDER_VIEW_GRID') == 1) {
+        if (Configuration::get('GIROFEEDS_EXTEND_ORDER_VIEW_GRID') == 1) {
             if (isset($params['select'])) {
-                $params['join'] .= ' LEFT JOIN `' . _DB_PREFIX_ . 'channable_orders_additional_data` AS cm ON (cm.`id_order` = a.`id_order` AND cm.`field_in_post` = \'marketplace_order_id\') ';
-                $params['select'] .= ', cm.`value_in_post` as channable_comment ';
+                $params['join'] .= ' LEFT JOIN `' . _DB_PREFIX_ . 'girofeeds_orders_additional_data` AS cm ON (cm.`id_order` = a.`id_order` AND cm.`field_in_post` = \'marketplace_order_id\') ';
+                $params['select'] .= ', cm.`value_in_post` as girofeeds_comment ';
             }
             $params['fields'] += [
                 'value_in_post' => [
-                    'title' => 'Channable Info',
+                    'title' => 'Girofeeds Info',
                     'search' => true,
                 ],
             ];
@@ -1069,28 +1074,28 @@ class Channable extends Module
      */
     public function hookActionAdminOrdersListingResultsModifier(array $params)
     {
-        if (Configuration::get('CHANNABLE_EXTEND_ORDER_VIEW_GRID') == 1) {
+        if (Configuration::get('GIROFEEDS_EXTEND_ORDER_VIEW_GRID') == 1) {
             foreach ($params['list'] as $key => $fields) {
-                $channable_comment = '';
+                $girofeeds_comment = '';
                 if (!isset($fields['value_in_post']) || empty($fields['value_in_post'])) {
                     $dbResults = Db::getInstance()->query(
                         'SELECT
-                        cm.`value_in_post` as `message` FROM `' . _DB_PREFIX_ . 'channable_orders_additional_data` cm
+                        cm.`value_in_post` as `message` FROM `' . _DB_PREFIX_ . 'girofeeds_orders_additional_data` cm
                      WHERE cm.id_order = \'' . (int) $fields['id_order'] . '\'
                        AND cm.`field_in_post` = \'marketplace_order_id\'
                     '
                     );
                     if ($dbResults) {
                         foreach ($dbResults as $dbResult) {
-                            if ($channable_comment != '') {
-                                $channable_comment = $channable_comment . "\n" . $dbResult['message'];
+                            if ($girofeeds_comment != '') {
+                                $girofeeds_comment = $girofeeds_comment . "\n" . $dbResult['message'];
                             } else {
-                                $channable_comment = $dbResult['message'];
+                                $girofeeds_comment = $dbResult['message'];
                             }
                         }
                     }
-                    if ($channable_comment != '') {
-                        $params['list'][$key]['value_in_post'] = $channable_comment;
+                    if ($girofeeds_comment != '') {
+                        $params['list'][$key]['value_in_post'] = $girofeeds_comment;
                     }
                 }
             }
@@ -1102,7 +1107,7 @@ class Channable extends Module
      */
     public function hookActionOrderGridDefinitionModifier(array $params)
     {
-        if (Configuration::get('CHANNABLE_EXTEND_ORDER_VIEW_GRID') == 1) {
+        if (Configuration::get('GIROFEEDS_EXTEND_ORDER_VIEW_GRID') == 1) {
             /** @var PrestaShop\PrestaShop\Core\Grid\Definition\GridDefinitionInterface $definition */
             $definition = $params['definition'];
 
@@ -1112,17 +1117,17 @@ class Channable extends Module
                 ->getColumns()
                 ->addAfter(
                     'osname',
-                    (new PrestaShop\PrestaShop\Core\Grid\Column\Type\DataColumn('channable'))
-                        ->setName($translator->trans('Channable Info', [], 'Modules.Channable'))
+                    (new PrestaShop\PrestaShop\Core\Grid\Column\Type\DataColumn('girofeeds'))
+                        ->setName($translator->trans('Girofeeds Info', [], 'Modules.Girofeeds'))
                         ->setOptions([
-                            'field' => 'channable_comment',
+                            'field' => 'girofeeds_comment',
                         ])
                 )
             ;
 
             $definition->getFilters()->add(
-                (new PrestaShop\PrestaShop\Core\Grid\Filter\Filter('channable', Symfony\Component\Form\Extension\Core\Type\TextType::class))
-                    ->setAssociatedColumn('channable')
+                (new PrestaShop\PrestaShop\Core\Grid\Filter\Filter('girofeeds', Symfony\Component\Form\Extension\Core\Type\TextType::class))
+                    ->setAssociatedColumn('girofeeds')
                     ->setTypeOptions([
                         'required' => false,
                     ])
@@ -1139,7 +1144,7 @@ class Channable extends Module
      */
     public function hookActionOrderGridQueryBuilderModifier(array $params)
     {
-        if (empty($params['search_query_builder']) || empty($params['search_criteria']) || Configuration::get('CHANNABLE_EXTEND_ORDER_VIEW_GRID') != 1) {
+        if (empty($params['search_query_builder']) || empty($params['search_criteria']) || Configuration::get('GIROFEEDS_EXTEND_ORDER_VIEW_GRID') != 1) {
             return;
         }
 
@@ -1147,22 +1152,22 @@ class Channable extends Module
 
         $searchCriteria = $params['search_criteria'];
 
-        $searchQueryBuilder->addSelect('cm.`value_in_post` as `channable_comment`');
+        $searchQueryBuilder->addSelect('cm.`value_in_post` as `girofeeds_comment`');
         $searchQueryBuilder->leftJoin(
             'o',
-            '`' . _DB_PREFIX_ . 'channable_orders_additional_data`',
+            '`' . _DB_PREFIX_ . 'girofeeds_orders_additional_data`',
             'cm',
             'cm.`id_order` = o.`id_order` AND cm.`field_in_post` = \'marketplace_order_id\' '
         );
 
-        if ('channable' === $searchCriteria->getOrderBy()) {
+        if ('girofeeds' === $searchCriteria->getOrderBy()) {
             $searchQueryBuilder->orderBy('cm.`value_in_post`', $searchCriteria->getOrderWay());
         }
 
         foreach ($searchCriteria->getFilters() as $filterName => $filterValue) {
-            if ('channable' === $filterName) {
-                $searchQueryBuilder->andWhere('cm.`value_in_post` LIKE :channable');
-                $searchQueryBuilder->setParameter('channable', $filterValue);
+            if ('girofeeds' === $filterName) {
+                $searchQueryBuilder->andWhere('cm.`value_in_post` LIKE :girofeeds');
+                $searchQueryBuilder->setParameter('girofeeds', $filterValue);
             }
         }
     }
@@ -1174,31 +1179,31 @@ class Channable extends Module
      */
     public function hookActionOrderGridDataModifier(array $params)
     {
-        if (Configuration::get('CHANNABLE_EXTEND_ORDER_VIEW_GRID') == 1) {
+        if (Configuration::get('GIROFEEDS_EXTEND_ORDER_VIEW_GRID') == 1) {
             /** @var PrestaShop\PrestaShop\Core\Grid\Data\GridData $data */
             $data = $params['data'];
             $records = $data->getRecords()->all();
             foreach ($records as &$record) {
                 $dbResults = Db::getInstance()->query(
                     'SELECT
-                        cm.`value_in_post` as `message` FROM `' . _DB_PREFIX_ . 'channable_orders_additional_data` cm
+                        cm.`value_in_post` as `message` FROM `' . _DB_PREFIX_ . 'girofeeds_orders_additional_data` cm
                      WHERE cm.id_order = \'' . (int) $record['id_order'] . '\'
                        AND cm.`field_in_post` = \'marketplace_order_id\'
                     '
                 );
                 if ($dbResults) {
                     foreach ($dbResults as $dbResult) {
-                        if (isset($channable_comment) && $channable_comment != '') {
-                            $channable_comment = $channable_comment . "\n" . $dbResult['message'];
+                        if (isset($girofeeds_comment) && $girofeeds_comment != '') {
+                            $girofeeds_comment = $girofeeds_comment . "\n" . $dbResult['message'];
                         } else {
-                            $channable_comment = $dbResult['message'];
+                            $girofeeds_comment = $dbResult['message'];
                         }
                     }
                 }
-                if (isset($channable_comment)) {
-                    $record['channable_comment'] = $channable_comment;
+                if (isset($girofeeds_comment)) {
+                    $record['girofeeds_comment'] = $girofeeds_comment;
                 }
-                unset($channable_comment);
+                unset($girofeeds_comment);
             }
             $params['data'] = new PrestaShop\PrestaShop\Core\Grid\Data\GridData(
                 new PrestaShop\PrestaShop\Core\Grid\Record\RecordCollection($records),
@@ -1213,7 +1218,7 @@ class Channable extends Module
      */
     public static function getCustomerGroupAssignments()
     {
-        $data = Configuration::get('CHANNABLE_CUSTOMER_GROUP_ASSIGNMENTS');
+        $data = Configuration::get('GIROFEEDS_CUSTOMER_GROUP_ASSIGNMENTS');
         $json = json_decode($data, true);
         $struct = [
             's' => '',
@@ -1238,7 +1243,7 @@ class Channable extends Module
      */
     public static function getMarketplaceAssignments()
     {
-        $data = Configuration::get('CHANNABLE_MARKETPLACE_ASSIGNMENTS');
+        $data = Configuration::get('GIROFEEDS_MARKETPLACE_ASSIGNMENTS');
         $json = json_decode($data, true);
         $struct = [
             's' => '',
@@ -1260,7 +1265,7 @@ class Channable extends Module
 
     public static function getTaxCountryAssignments()
     {
-        $data = Configuration::get('CHANNABLE_TAXCOUNTRY_ASSIGNMENTS');
+        $data = Configuration::get('GIROFEEDS_TAXCOUNTRY_ASSIGNMENTS');
         $json = json_decode($data, true);
         $struct = [
             'country_id' => '',
@@ -1284,7 +1289,7 @@ class Channable extends Module
 
     public static function getCarrierAssignments()
     {
-        $carrierAssignments = ChannableCarrier::getAllAssignements();
+        $carrierAssignments = GirofeedsCarrier::getAllAssignements();
         for ($x = 1; $x < 6; ++$x) {
             if (!is_array($carrierAssignments)) {
                 $carrierAssignments = [];
@@ -1303,7 +1308,7 @@ class Channable extends Module
      */
     public static function useCache()
     {
-        return Configuration::get('CHANNABLE_USE_FEED_CACHE') == '1';
+        return Configuration::get('GIROFEEDS_USE_FEED_CACHE') == '1';
     }
 
     /**

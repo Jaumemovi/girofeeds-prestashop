@@ -1,22 +1,27 @@
 <?php
 /**
- * 2007-2025 patworx.de
+ * Original work: 2007-2025 patworx multimedia GmbH (patworx.de)
+ * Modifications: 2025-2026 Moviendote (https://girofeeds.com/)
+ *
+ * Based on the Channable PrestaShop addon developed by patworx multimedia GmbH
  *
  * DISCLAIMER
  *
- * Do not edit or add to this file if you wish to upgrade AmazonPay to newer
+ * Do not edit or add to this file if you wish to upgrade Girofeeds to newer
  * versions in the future. If you wish to customize PrestaShop for your
  * needs please refer to http://www.prestashop.com for more information.
  *
  *  @author    patworx multimedia GmbH <service@patworx.de>
+ *  @author    Moviendote <hello@girofeeds.com>
  *  @copyright 2007-2025 patworx multimedia GmbH
+ *  @copyright 2025-2026 Moviendote
  *  @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
 if (!defined('_PS_VERSION_')) {
     exit;
 }
 
-class ChannableOrderModuleFrontController extends ModuleFrontController
+class GirofeedsOrderModuleFrontController extends ModuleFrontController
 {
     public const DEBUG_LOG = false;
 
@@ -54,14 +59,14 @@ class ChannableOrderModuleFrontController extends ModuleFrontController
             }
             if ($order = $orders->getFirst()) {
                 $jsonData = ['id' => $order->id, 'reference' => $order->reference];
-                if (in_array($order->current_state, Channable::getChannableOrderStates('SHIPPING_SHIPPED'))) {
+                if (in_array($order->current_state, Girofeeds::getGirofeedsOrderStates('SHIPPING_SHIPPED'))) {
                     $jsonData['is_shipped'] = self::SHIPPING_SHIPPED;
-                } elseif (in_array($order->current_state, Channable::getChannableOrderStates('SHIPPING_CANCELLED'))) {
+                } elseif (in_array($order->current_state, Girofeeds::getGirofeedsOrderStates('SHIPPING_CANCELLED'))) {
                     $jsonData['is_shipped'] = self::SHIPPING_CANCELLED;
                 } else {
                     $jsonData['is_shipped'] = self::SHIPPING_NOT_SHIPPED;
                 }
-                $order_return_code = ChannableOrderReturn::getByOrderId((int) $order->id);
+                $order_return_code = GirofeedsOrderReturn::getByOrderId((int) $order->id);
                 if (trim($order->getWsShippingNumber()) != '' || $order_return_code) {
                     $jsonData['fulfillment'] = [
                         'tracking_code' => $order->getWsShippingNumber(),
@@ -70,7 +75,7 @@ class ChannableOrderModuleFrontController extends ModuleFrontController
                 }
             }
         } else {
-            $postData = Channable::fetchPhpInput();
+            $postData = Girofeeds::fetchPhpInput();
 
             $postData = json_decode($postData);
             if ($postData != null) {
@@ -92,17 +97,17 @@ class ChannableOrderModuleFrontController extends ModuleFrontController
                     }
                 }
 
-                $ordersCheck = Order::getByReference($postData->channable_id);
+                $ordersCheck = Order::getByReference($postData->girofeeds_id);
                 if ($order = $ordersCheck->getFirst()) {
                     $error_array[] = 'Order already exists';
                 } else {
                     if (sizeof($error_array) == 0 && $valid) {
                         try {
-                            if ((int) Configuration::get('CHANNABLE_EMPLOYEE_ID') > 0) {
-                                $this->context->employee = new Employee((int) Configuration::get('CHANNABLE_EMPLOYEE_ID'));
+                            if ((int) Configuration::get('GIROFEEDS_EMPLOYEE_ID') > 0) {
+                                $this->context->employee = new Employee((int) Configuration::get('GIROFEEDS_EMPLOYEE_ID'));
                             }
 
-                            $guest_checkout = Configuration::get('CHANNABLE_USE_GUEST_CHECKOUT') == '1';
+                            $guest_checkout = Configuration::get('GIROFEEDS_USE_GUEST_CHECKOUT') == '1';
 
                             $have_customer = false;
                             if (!$guest_checkout) {
@@ -136,7 +141,7 @@ class ChannableOrderModuleFrontController extends ModuleFrontController
                             if (isset($postData->channel_name)) {
                                 $new_group = false;
 
-                                $groupAssignments = Channable::getCustomerGroupAssignments();
+                                $groupAssignments = Girofeeds::getCustomerGroupAssignments();
                                 foreach ($groupAssignments as $cga) {
                                     if (trim($cga['s']) != '' && (int) $cga['g'] > 0) {
                                         if (strpos($postData->channel_name, $cga['s']) !== false) {
@@ -151,7 +156,7 @@ class ChannableOrderModuleFrontController extends ModuleFrontController
                                     $customer->save();
                                 }
 
-                                $marketplaceAssignments = Channable::getMarketplaceAssignments();
+                                $marketplaceAssignments = Girofeeds::getMarketplaceAssignments();
                                 foreach ($marketplaceAssignments as $msa) {
                                     if (trim($msa['s']) != '' && (int) $msa['g'] > 0) {
                                         if (strpos($postData->channel_name, $msa['s']) !== false) {
@@ -184,15 +189,15 @@ class ChannableOrderModuleFrontController extends ModuleFrontController
                                 $id_carrier = 0;
 
                                 $posted_products = [];
-                                foreach ($postData->products as $product_key_post => $channable_product) {
-                                    $product = $this->checkAndGetProductById($channable_product->id);
+                                foreach ($postData->products as $product_key_post => $girofeeds_product) {
+                                    $product = $this->checkAndGetProductById($girofeeds_product->id);
                                     if (!$product) {
-                                        $product = $this->checkAndGetProduct($channable_product->gtin);
+                                        $product = $this->checkAndGetProduct($girofeeds_product->gtin);
                                     }
                                     if ($product) {
                                         $posted_products[$product_key_post] = (int) $product->id . (isset($product->id_product_attribute) ? '_' . $product->id_product_attribute : null);
                                         $this->context->cart->updateQty(
-                                            (int) $channable_product->quantity,
+                                            (int) $girofeeds_product->quantity,
                                             (int) $product->id,
                                             isset($product->id_product_attribute) ? $product->id_product_attribute : null,
                                             false,
@@ -201,10 +206,10 @@ class ChannableOrderModuleFrontController extends ModuleFrontController
                                             null,
                                             false);
                                         $productCategories = Product::getProductCategories($product->id);
-                                        if ($productCarrier = ChannableCarrier::getByCategoryIds($productCategories)) {
+                                        if ($productCarrier = GirofeedsCarrier::getByCategoryIds($productCategories)) {
                                             $id_carrier = $productCarrier->id_carrier;
                                         }
-                                        if ($productCarrier = ChannableCarrier::getByProductId($product->id)) {
+                                        if ($productCarrier = GirofeedsCarrier::getByProductId($product->id)) {
                                             $id_carrier = $productCarrier->id_carrier;
                                         }
                                     }
@@ -296,7 +301,7 @@ class ChannableOrderModuleFrontController extends ModuleFrontController
                                 }
                                 $delivery_address->phone_mobile = $this->prepPhoneForValidation($postData->customer->mobile);
                                 $delivery_address->phone = $this->prepPhoneForValidation($postData->customer->phone);
-                                if ($delivery_address->phone_mobile == '' && Configuration::get('CHANNABLE_USE_PHONE_FOR_MOBILE') == '1') {
+                                if ($delivery_address->phone_mobile == '' && Configuration::get('GIROFEEDS_USE_PHONE_FOR_MOBILE') == '1') {
                                     $delivery_address->phone_mobile = $delivery_address->phone;
                                 }
                                 $delivery_address->save();
@@ -348,7 +353,7 @@ class ChannableOrderModuleFrontController extends ModuleFrontController
                                 }
                                 $invoice_address->phone_mobile = $this->prepPhoneForValidation($postData->customer->mobile);
                                 $invoice_address->phone = $this->prepPhoneForValidation($postData->customer->phone);
-                                if ($invoice_address->phone_mobile == '' && Configuration::get('CHANNABLE_USE_PHONE_FOR_MOBILE') == '1') {
+                                if ($invoice_address->phone_mobile == '' && Configuration::get('GIROFEEDS_USE_PHONE_FOR_MOBILE') == '1') {
                                     $invoice_address->phone_mobile = $invoice_address->phone;
                                 }
                                 if (isset($postData->billing->vat_number)) {
@@ -360,7 +365,7 @@ class ChannableOrderModuleFrontController extends ModuleFrontController
                                 $carrier = null;
 
                                 if ((int) $id_carrier == 0) {
-                                    $id_carrier = Configuration::get('CHANNABLE_ORDER_CARRIER_ID_IMPORT');
+                                    $id_carrier = Configuration::get('GIROFEEDS_ORDER_CARRIER_ID_IMPORT');
                                     if ((int) $id_carrier == 0) {
                                         $id_carrier = (int) Configuration::get('PS_CARRIER_DEFAULT');
                                     }
@@ -373,13 +378,13 @@ class ChannableOrderModuleFrontController extends ModuleFrontController
                                 $order->id_currency = $id_currency;
                                 $order->id_lang = Configuration::get('PS_LANG_DEFAULT');
                                 $order->id_cart = $this->context->cart->id;
-                                $order->reference = $postData->channable_id;
+                                $order->reference = $postData->girofeeds_id;
                                 $order->id_shop = (int) Context::getContext()->shop->id;
                                 $order->id_shop_group = (int) Context::getContext()->shop->id_shop_group;
 
                                 $order->secure_key = pSQL(md5(Tools::passwdGen()));
                                 $order->payment = $postData->price->payment_method;
-                                $order->module = 'channable';
+                                $order->module = 'girofeeds';
 
                                 try {
                                     $currency = new Currency((int) $this->context->cart->id_currency);
@@ -390,10 +395,10 @@ class ChannableOrderModuleFrontController extends ModuleFrontController
 
                                 $order->conversion_rate = $conversion_rate;
 
-                                if ((float) Configuration::get('CHANNABLE_ORDER_CARRIER_TAX') > 0) {
-                                    $shipping_tax_value = round((float) $postData->price->shipping / (100 + (float) Configuration::get('CHANNABLE_ORDER_CARRIER_TAX')) * 100, 6);
+                                if ((float) Configuration::get('GIROFEEDS_ORDER_CARRIER_TAX') > 0) {
+                                    $shipping_tax_value = round((float) $postData->price->shipping / (100 + (float) Configuration::get('GIROFEEDS_ORDER_CARRIER_TAX')) * 100, 6);
                                     $order->total_shipping_tax_excl = $shipping_tax_value;
-                                    $order->carrier_tax_rate = (float) Configuration::get('CHANNABLE_ORDER_CARRIER_TAX');
+                                    $order->carrier_tax_rate = (float) Configuration::get('GIROFEEDS_ORDER_CARRIER_TAX');
                                 } else {
                                     $shipping_tax_value = 0;
                                     $order->total_shipping_tax_excl = $postData->price->shipping;
@@ -429,7 +434,7 @@ class ChannableOrderModuleFrontController extends ModuleFrontController
 
                                 $result = $order->add();
 
-                                $order_status_id = Configuration::get('CHANNABLE_ORDER_STATE_IMPORT');
+                                $order_status_id = Configuration::get('GIROFEEDS_ORDER_STATE_IMPORT');
                                 if ($new_order_status) {
                                     $order_status_id = $new_order_status;
                                 }
@@ -441,8 +446,8 @@ class ChannableOrderModuleFrontController extends ModuleFrontController
 
                                 $order_detail = new OrderDetail(null, null, $this->context);
                                 $id_warehouse = 0;
-                                if (Configuration::get('CHANNABLE_ORDER_WAREHOUSE') != '' && (int) Configuration::get('CHANNABLE_ORDER_WAREHOUSE') > 0) {
-                                    $id_warehouse = (int) Configuration::get('CHANNABLE_ORDER_WAREHOUSE');
+                                if (Configuration::get('GIROFEEDS_ORDER_WAREHOUSE') != '' && (int) Configuration::get('GIROFEEDS_ORDER_WAREHOUSE') > 0) {
+                                    $id_warehouse = (int) Configuration::get('GIROFEEDS_ORDER_WAREHOUSE');
                                 }
                                 $id_order_invoice = 0;
                                 if ($order->invoice_number > 0) {
@@ -463,11 +468,11 @@ class ChannableOrderModuleFrontController extends ModuleFrontController
 
                                 $order_carrier_tax_rate = 0;
 
-                                if ((float) Configuration::get('CHANNABLE_ORDER_CARRIER_TAX') > 0) {
-                                    $order_carrier_tax_rate = (float) Configuration::get('CHANNABLE_ORDER_CARRIER_TAX');
+                                if ((float) Configuration::get('GIROFEEDS_ORDER_CARRIER_TAX') > 0) {
+                                    $order_carrier_tax_rate = (float) Configuration::get('GIROFEEDS_ORDER_CARRIER_TAX');
                                 }
 
-                                $tax_country_data = Configuration::get('CHANNABLE_TAXCOUNTRY_ASSIGNMENTS');
+                                $tax_country_data = Configuration::get('GIROFEEDS_TAXCOUNTRY_ASSIGNMENTS');
                                 $json_tax = json_decode($tax_country_data, true);
                                 if ($json_tax != null && is_array($json_tax)) {
                                     foreach ($json_tax as $json_tax_record) {
@@ -488,28 +493,28 @@ class ChannableOrderModuleFrontController extends ModuleFrontController
                                 $order_carrier->save();
 
                                 if (isset($postData->price->commission)) {
-                                    $ordersAdditionalData = new ChannableOrdersAdditionalData();
+                                    $ordersAdditionalData = new GirofeedsOrdersAdditionalData();
                                     $ordersAdditionalData->id_order = (int) $order->id;
                                     $ordersAdditionalData->field_in_post = 'commission';
                                     $ordersAdditionalData->value_in_post = (float) $postData->price->commission;
                                     $ordersAdditionalData->save();
                                 }
                                 if (isset($postData->channel_name)) {
-                                    $ordersAdditionalData = new ChannableOrdersAdditionalData();
+                                    $ordersAdditionalData = new GirofeedsOrdersAdditionalData();
                                     $ordersAdditionalData->id_order = (int) $order->id;
                                     $ordersAdditionalData->field_in_post = 'marketplace';
                                     $ordersAdditionalData->value_in_post = $postData->channel_name;
                                     $ordersAdditionalData->save();
                                 }
                                 if (isset($postData->channel_id)) {
-                                    $ordersAdditionalData = new ChannableOrdersAdditionalData();
+                                    $ordersAdditionalData = new GirofeedsOrdersAdditionalData();
                                     $ordersAdditionalData->id_order = (int) $order->id;
                                     $ordersAdditionalData->field_in_post = 'marketplace_order_id';
                                     $ordersAdditionalData->value_in_post = $postData->channel_id;
                                     $ordersAdditionalData->save();
                                 }
                                 if (isset($postData->shipment_method)) {
-                                    $ordersAdditionalData = new ChannableOrdersAdditionalData();
+                                    $ordersAdditionalData = new GirofeedsOrdersAdditionalData();
                                     $ordersAdditionalData->id_order = (int) $order->id;
                                     $ordersAdditionalData->field_in_post = 'shipment_method';
                                     $ordersAdditionalData->value_in_post = $postData->shipment_method;
@@ -524,14 +529,14 @@ class ChannableOrderModuleFrontController extends ModuleFrontController
                                     $msg->add();
                                 }
                                 if (isset($postData->shipping->pickup_point_name)) {
-                                    $ordersAdditionalData = new ChannableOrdersAdditionalData();
+                                    $ordersAdditionalData = new GirofeedsOrdersAdditionalData();
                                     $ordersAdditionalData->id_order = (int) $order->id;
                                     $ordersAdditionalData->field_in_post = 'Pick up point name';
                                     $ordersAdditionalData->value_in_post = (string) $postData->shipping->pickup_point_name;
                                     $ordersAdditionalData->save();
                                 }
                                 if (isset($postData->shipping->shipping_center_id)) {
-                                    $ordersAdditionalData = new ChannableOrdersAdditionalData();
+                                    $ordersAdditionalData = new GirofeedsOrdersAdditionalData();
                                     $ordersAdditionalData->id_order = (int) $order->id;
                                     $ordersAdditionalData->field_in_post = 'Shipping center id';
                                     $ordersAdditionalData->value_in_post = (string) $postData->shipping->shipping_center_id;
@@ -539,7 +544,7 @@ class ChannableOrderModuleFrontController extends ModuleFrontController
                                 }
                                 if (isset($postData->customer->customer_channel_id)) {
                                     if ($postData->customer->customer_channel_id != '') {
-                                        $ordersAdditionalData = new ChannableOrdersAdditionalData();
+                                        $ordersAdditionalData = new GirofeedsOrdersAdditionalData();
                                         $ordersAdditionalData->id_order = (int) $order->id;
                                         $ordersAdditionalData->field_in_post = 'customer_channel_id';
                                         $ordersAdditionalData->value_in_post = $postData->customer->customer_channel_id;
@@ -548,7 +553,7 @@ class ChannableOrderModuleFrontController extends ModuleFrontController
                                 }
                                 if (isset($postData->customer->business_order)) {
                                     if ($postData->customer->business_order != '') {
-                                        $ordersAdditionalData = new ChannableOrdersAdditionalData();
+                                        $ordersAdditionalData = new GirofeedsOrdersAdditionalData();
                                         $ordersAdditionalData->id_order = (int) $order->id;
                                         $ordersAdditionalData->field_in_post = 'business_order';
                                         $ordersAdditionalData->value_in_post = $postData->customer->business_order;
@@ -559,7 +564,7 @@ class ChannableOrderModuleFrontController extends ModuleFrontController
                                 foreach ($postData->products as $pKey => $product) {
                                     if (isset($product->article_number)) {
                                         if ($product->article_number != '') {
-                                            $ordersAdditionalData = new ChannableOrdersAdditionalData();
+                                            $ordersAdditionalData = new GirofeedsOrdersAdditionalData();
                                             $ordersAdditionalData->id_order = (int) $order->id;
                                             $ordersAdditionalData->field_in_post = 'ArticleNumber - ' . $product->id . ', ' . $product->title;
                                             $ordersAdditionalData->value_in_post = $product->article_number;
@@ -592,7 +597,7 @@ class ChannableOrderModuleFrontController extends ModuleFrontController
                                 $order->total_paid_real = $saved_total_paid_real;
                                 $order->save();
 
-                                if (Configuration::get('CHANNABLE_COMMENT_AS_NOTE') == '1') {
+                                if (Configuration::get('GIROFEEDS_COMMENT_AS_NOTE') == '1') {
                                     if (isset($postData->memo) && (string) $postData->memo != '') {
                                         $msg = new Message();
                                         $msg->message = $postData->memo;
@@ -604,7 +609,7 @@ class ChannableOrderModuleFrontController extends ModuleFrontController
                                     }
                                 }
 
-                                if (Configuration::get('CHANNABLE_COMMENT_AS_CUSTOMER_THREAD') == '1') {
+                                if (Configuration::get('GIROFEEDS_COMMENT_AS_CUSTOMER_THREAD') == '1') {
                                     if (isset($postData->memo) && (string) $postData->memo != '') {
                                         $id_customer_thread = CustomerThread::getIdCustomerThreadByEmailAndIdOrder($customer->email, $order->id);
                                         if (!$id_customer_thread) {
@@ -631,7 +636,7 @@ class ChannableOrderModuleFrontController extends ModuleFrontController
                                     }
                                 }
 
-                                if (Configuration::get('CHANNABLE_ENABLE_NEW_ORDER_HOOK') == '1') {
+                                if (Configuration::get('GIROFEEDS_ENABLE_NEW_ORDER_HOOK') == '1') {
                                     // Hook validate order
                                     Hook::exec('actionValidateOrder', [
                                         'cart' => $this->context->cart,
@@ -643,13 +648,13 @@ class ChannableOrderModuleFrontController extends ModuleFrontController
                                 }
 
                                 Hook::exec(
-                                    'channableOrderCreation',
+                                    'girofeedsOrderCreation',
                                     [
                                         'order' => &$order,
                                     ]
                                 );
 
-                                if (Configuration::get('CHANNABLE_SHOP_STOCK_SYNC') == '1') {
+                                if (Configuration::get('GIROFEEDS_SHOP_STOCK_SYNC') == '1') {
                                     foreach ($product_list as $product) {
                                         $idProd = $product['id_product'];
                                         $idProdAttr = $product['id_product_attribute'];
@@ -776,9 +781,9 @@ class ChannableOrderModuleFrontController extends ModuleFrontController
     private function prepNameForValidation($string)
     {
         if (trim($string) == '') {
-            return Configuration::get('CHANNABLE_ORDER_IMPORT_NAME_DEFAULT');
+            return Configuration::get('GIROFEEDS_ORDER_IMPORT_NAME_DEFAULT');
         }
-        if (Configuration::get('CHANNABLE_REPLACE_NAME_CHARACTERS') == '1') {
+        if (Configuration::get('GIROFEEDS_REPLACE_NAME_CHARACTERS') == '1') {
             try {
                 $string = preg_replace('/[^ \\p{Latin}]+/u', '', $string, -1);
                 $string = str_replace(
@@ -917,7 +922,7 @@ class ChannableOrderModuleFrontController extends ModuleFrontController
             return;
         }
         $string = '[' . date('d.m.Y H:i:s') . '] ' . $string . "\n";
-        $logfile = $this->module->getLocalPath() . 'channable.log';
+        $logfile = $this->module->getLocalPath() . 'girofeeds.log';
         try {
             file_put_contents($logfile, $string, FILE_APPEND);
         } catch (Exception $e) {

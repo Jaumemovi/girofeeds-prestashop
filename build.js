@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const archiver = require('archiver');
 
-const moduleName = 'channable';
+const moduleName = 'girofeeds';
 const packageJson = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
 const version = packageJson.version;
 const outputFileName = `${moduleName}-v${version}.zip`;
@@ -38,7 +38,9 @@ const filesToExclude = [
   'build.js',
   `${moduleName}-v${version}.zip`,
   '.gitignore',
-  'Readme.md'
+  '.claude',
+  'README.pdf',
+  'README.html'
 ];
 
 console.log(`Creating ${outputFileName}...`);

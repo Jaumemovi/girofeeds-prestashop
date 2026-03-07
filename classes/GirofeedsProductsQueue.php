@@ -1,22 +1,27 @@
 <?php
 /**
- * 2007-2025 patworx.de
+ * Original work: 2007-2025 patworx multimedia GmbH (patworx.de)
+ * Modifications: 2025-2026 Moviendote (https://girofeeds.com/)
+ *
+ * Based on the Channable PrestaShop addon developed by patworx multimedia GmbH
  *
  * DISCLAIMER
  *
- * Do not edit or add to this file if you wish to upgrade AmazonPay to newer
+ * Do not edit or add to this file if you wish to upgrade Girofeeds to newer
  * versions in the future. If you wish to customize PrestaShop for your
  * needs please refer to http://www.prestashop.com for more information.
  *
  *  @author    patworx multimedia GmbH <service@patworx.de>
+ *  @author    Moviendote <hello@girofeeds.com>
  *  @copyright 2007-2025 patworx multimedia GmbH
+ *  @copyright 2025-2026 Moviendote
  *  @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
 if (!defined('_PS_VERSION_')) {
     exit;
 }
 
-class ChannableProductsQueue extends ObjectModel
+class GirofeedsProductsQueue extends ObjectModel
 {
     public $id;
 
@@ -27,8 +32,8 @@ class ChannableProductsQueue extends ObjectModel
     public $date_add;
 
     public static $definition = [
-        'table' => 'channable_products_queue',
-        'primary' => 'id_channable_products_queue',
+        'table' => 'girofeeds_products_queue',
+        'primary' => 'id_girofeeds_products_queue',
         'fields' => [
             'id_product' => [
                 'type' => self::TYPE_INT,
@@ -79,7 +84,7 @@ class ChannableProductsQueue extends ObjectModel
         $sql = 'SELECT * FROM `' . _DB_PREFIX_ . self::$definition['table'] . '` WHERE `running` = 0 ORDER BY `date_add` ASC LIMIT 0,' . $limit;
         if ($results = Db::getInstance()->executeS($sql)) {
             foreach ($results as $row) {
-                $return[] = ['id_channable_products_queue' => $row['id_channable_products_queue'],
+                $return[] = ['id_girofeeds_products_queue' => $row['id_girofeeds_products_queue'],
                     'id_product' => $row['id_product'],
                 ];
             }
@@ -89,14 +94,14 @@ class ChannableProductsQueue extends ObjectModel
     }
 
     /**
-     * @param int $id_channable_products_queue
+     * @param int $id_girofeeds_products_queue
      * @param int $running
      *
      * @return bool
      */
-    public static function updateRunningStatus($id_channable_products_queue, $running = 1)
+    public static function updateRunningStatus($id_girofeeds_products_queue, $running = 1)
     {
-        $sql = 'UPDATE `' . _DB_PREFIX_ . self::$definition['table'] . '` SET `running` = \'' . (int) $running . '\' WHERE `id_channable_products_queue` = ' . $id_channable_products_queue;
+        $sql = 'UPDATE `' . _DB_PREFIX_ . self::$definition['table'] . '` SET `running` = \'' . (int) $running . '\' WHERE `id_girofeeds_products_queue` = ' . $id_girofeeds_products_queue;
 
         return Db::getInstance()->execute($sql);
     }
@@ -112,14 +117,14 @@ class ChannableProductsQueue extends ObjectModel
     }
 
     /**
-     * @param int $id_channable_products_queue
+     * @param int $id_girofeeds_products_queue
      *
      * @return bool
      */
-    public static function deleteById($id_channable_products_queue)
+    public static function deleteById($id_girofeeds_products_queue)
     {
-        if (Channable::useCache()) {
-            $sql = 'DELETE FROM `' . _DB_PREFIX_ . self::$definition['table'] . '` WHERE `id_channable_products_queue` = ' . $id_channable_products_queue;
+        if (Girofeeds::useCache()) {
+            $sql = 'DELETE FROM `' . _DB_PREFIX_ . self::$definition['table'] . '` WHERE `id_girofeeds_products_queue` = ' . $id_girofeeds_products_queue;
 
             return Db::getInstance()->execute($sql);
         }

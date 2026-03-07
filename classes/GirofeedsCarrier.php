@@ -1,22 +1,27 @@
 <?php
 /**
- * 2007-2025 patworx.de
+ * Original work: 2007-2025 patworx multimedia GmbH (patworx.de)
+ * Modifications: 2025-2026 Moviendote (https://girofeeds.com/)
+ *
+ * Based on the Channable PrestaShop addon developed by patworx multimedia GmbH
  *
  * DISCLAIMER
  *
- * Do not edit or add to this file if you wish to upgrade AmazonPay to newer
+ * Do not edit or add to this file if you wish to upgrade Girofeeds to newer
  * versions in the future. If you wish to customize PrestaShop for your
  * needs please refer to http://www.prestashop.com for more information.
  *
  *  @author    patworx multimedia GmbH <service@patworx.de>
+ *  @author    Moviendote <hello@girofeeds.com>
  *  @copyright 2007-2025 patworx multimedia GmbH
+ *  @copyright 2025-2026 Moviendote
  *  @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
 if (!defined('_PS_VERSION_')) {
     exit;
 }
 
-class ChannableCarrier extends ObjectModel
+class GirofeedsCarrier extends ObjectModel
 {
     public $id;
 
@@ -29,8 +34,8 @@ class ChannableCarrier extends ObjectModel
     public $date_add;
 
     public static $definition = [
-        'table' => 'channable_carriers',
-        'primary' => 'id_channable_carriers',
+        'table' => 'girofeeds_carriers',
+        'primary' => 'id_girofeeds_carriers',
         'fields' => [
             'entity_type' => [
                 'type' => self::TYPE_STRING,
@@ -59,10 +64,10 @@ class ChannableCarrier extends ObjectModel
     public static function getAllAssignements()
     {
         $return = [];
-        $sql = 'SELECT cc.* FROM `' . _DB_PREFIX_ . 'channable_carriers` cc';
+        $sql = 'SELECT cc.* FROM `' . _DB_PREFIX_ . 'girofeeds_carriers` cc';
         if ($results = Db::getInstance()->executeS($sql)) {
             foreach ($results as $row) {
-                $return[] = ['id' => $row['id_channable_carriers'],
+                $return[] = ['id' => $row['id_girofeeds_carriers'],
                     'entity_type' => $row['entity_type'],
                     'id_entity' => $row['id_entity'],
                     'id_carrier' => $row['id_carrier'],
@@ -86,7 +91,7 @@ class ChannableCarrier extends ObjectModel
             $sql = 'SELECT * FROM `' . _DB_PREFIX_ . self::$definition['table'] . '`
                  WHERE `id_entity` IN (' . join(',', $category_ids) . ') AND `entity_type` = \'category\'';
             if ($result = Db::getInstance()->getRow($sql)) {
-                return new self($result['id_channable_carriers']);
+                return new self($result['id_girofeeds_carriers']);
             } else {
                 return false;
             }
@@ -107,7 +112,7 @@ class ChannableCarrier extends ObjectModel
         $sql = 'SELECT * FROM `' . _DB_PREFIX_ . self::$definition['table'] . '`
                  WHERE `id_entity` = \'' . (int) $id_product . '\' AND `entity_type` = \'product\'';
         if ($result = Db::getInstance()->getRow($sql)) {
-            return new self($result['id_channable_carriers']);
+            return new self($result['id_girofeeds_carriers']);
         } else {
             return false;
         }

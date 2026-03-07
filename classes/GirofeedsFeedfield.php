@@ -1,22 +1,27 @@
 <?php
 /**
- * 2007-2025 patworx.de
+ * Original work: 2007-2025 patworx multimedia GmbH (patworx.de)
+ * Modifications: 2025-2026 Moviendote (https://girofeeds.com/)
+ *
+ * Based on the Channable PrestaShop addon developed by patworx multimedia GmbH
  *
  * DISCLAIMER
  *
- * Do not edit or add to this file if you wish to upgrade AmazonPay to newer
+ * Do not edit or add to this file if you wish to upgrade Girofeeds to newer
  * versions in the future. If you wish to customize PrestaShop for your
  * needs please refer to http://www.prestashop.com for more information.
  *
  *  @author    patworx multimedia GmbH <service@patworx.de>
+ *  @author    Moviendote <hello@girofeeds.com>
  *  @copyright 2007-2025 patworx multimedia GmbH
+ *  @copyright 2025-2026 Moviendote
  *  @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
 if (!defined('_PS_VERSION_')) {
     exit;
 }
 
-class ChannableFeedfield extends ObjectModel
+class GirofeedsFeedfield extends ObjectModel
 {
     public $id;
 
@@ -90,8 +95,8 @@ class ChannableFeedfield extends ObjectModel
     ];
 
     public static $definition = [
-        'table' => 'channable_feedfields',
-        'primary' => 'id_channable_feedfields',
+        'table' => 'girofeeds_feedfields',
+        'primary' => 'id_girofeeds_feedfields',
         'fields' => [
             'tablename' => [
                 'type' => self::TYPE_STRING,
@@ -123,10 +128,10 @@ class ChannableFeedfield extends ObjectModel
     {
         if (is_null(self::$cached_fields)) {
             $return = [];
-            $sql = 'SELECT cf.* FROM `' . _DB_PREFIX_ . 'channable_feedfields` cf';
+            $sql = 'SELECT cf.* FROM `' . _DB_PREFIX_ . 'girofeeds_feedfields` cf';
             if ($results = Db::getInstance()->executeS($sql)) {
                 foreach ($results as $row) {
-                    $return[] = ['id' => $row['id_channable_feedfields'],
+                    $return[] = ['id' => $row['id_girofeeds_feedfields'],
                         'tablename' => $row['tablename'],
                         'field_in_db' => $row['field_in_db'],
                         'field_in_feed' => $row['field_in_feed'],
@@ -208,7 +213,7 @@ class ChannableFeedfield extends ObjectModel
      */
     public static function removeAllFeedfields()
     {
-        $sql = 'TRUNCATE TABLE `' . _DB_PREFIX_ . 'channable_feedfields`';
+        $sql = 'TRUNCATE TABLE `' . _DB_PREFIX_ . 'girofeeds_feedfields`';
 
         return Db::getInstance()->execute($sql);
     }

@@ -1,22 +1,27 @@
 <?php
 /**
- * 2007-2025 patworx.de
+ * Original work: 2007-2025 patworx multimedia GmbH (patworx.de)
+ * Modifications: 2025-2026 Moviendote (https://girofeeds.com/)
+ *
+ * Based on the Channable PrestaShop addon developed by patworx multimedia GmbH
  *
  * DISCLAIMER
  *
- * Do not edit or add to this file if you wish to upgrade AmazonPay to newer
+ * Do not edit or add to this file if you wish to upgrade Girofeeds to newer
  * versions in the future. If you wish to customize PrestaShop for your
  * needs please refer to http://www.prestashop.com for more information.
  *
  *  @author    patworx multimedia GmbH <service@patworx.de>
+ *  @author    Moviendote <hello@girofeeds.com>
  *  @copyright 2007-2025 patworx multimedia GmbH
+ *  @copyright 2025-2026 Moviendote
  *  @license   http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
  */
 if (!defined('_PS_VERSION_')) {
     exit;
 }
 
-class ChannableFeedModuleFrontController extends ModuleFrontController
+class GirofeedsFeedModuleFrontController extends ModuleFrontController
 {
     protected static $combination_separator = '||||';
     protected static $combination_desc_separator = '####';
@@ -54,7 +59,7 @@ class ChannableFeedModuleFrontController extends ModuleFrontController
             exit('Not authenticated');
         }
 
-        if (Tools::getValue('multiquerymode') == 'true' || Configuration::get('CHANNABLE_MULTIQUERY_MODE')) {
+        if (Tools::getValue('multiquerymode') == 'true' || Configuration::get('GIROFEEDS_MULTIQUERY_MODE')) {
             $this->multiquerymode = true;
         }
 
@@ -67,11 +72,11 @@ class ChannableFeedModuleFrontController extends ModuleFrontController
         if (Tools::getValue('track_cached') == 'true') {
             $this->track_cached = true;
         }
-        if (Channable::useCache()) {
+        if (Girofeeds::useCache()) {
             $this->sql_optimization_mode = 'id_product_and_attribute';
         }
 
-        if (Configuration::get('CHANNABLE_DISABLE_VARIANTS') == '1') {
+        if (Configuration::get('GIROFEEDS_DISABLE_VARIANTS') == '1') {
             $this->sql_optimization_mode = 'id_product';
         }
 
@@ -90,13 +95,13 @@ class ChannableFeedModuleFrontController extends ModuleFrontController
         $id_carrier = (int) Configuration::get('PS_CARRIER_DEFAULT');
         $default_carrier = new Carrier((int) Configuration::get('PS_CARRIER_DEFAULT'));
 
-        $channable_customer_id = false;
-        if ((int) Configuration::get('CHANNABLE_CUSTOMER_ID') > 0) {
-            $channable_customer_id = (int) Configuration::get('CHANNABLE_CUSTOMER_ID');
-            if (Customer::getAddressesTotalById($channable_customer_id) > 0) {
-                $customer = new Customer($channable_customer_id);
+        $girofeeds_customer_id = false;
+        if ((int) Configuration::get('GIROFEEDS_CUSTOMER_ID') > 0) {
+            $girofeeds_customer_id = (int) Configuration::get('GIROFEEDS_CUSTOMER_ID');
+            if (Customer::getAddressesTotalById($girofeeds_customer_id) > 0) {
+                $customer = new Customer($girofeeds_customer_id);
                 $address = $customer->getAddresses((int) Context::getContext()->language->id);
-                $channable_default_address_id = $address[0]['id_address'];
+                $girofeeds_default_address_id = $address[0]['id_address'];
                 $default_country = new Country((int) $address[0]['id_country']);
                 $id_zone = (int) $default_country->id_zone;
             }
@@ -113,12 +118,12 @@ class ChannableFeedModuleFrontController extends ModuleFrontController
         $starttime = microtime(true);
         $limit_string = false;
 
-        $sql_optimization_mode = Configuration::get('CHANNABLE_SQL_OPTIMIZATION_MODE');
+        $sql_optimization_mode = Configuration::get('GIROFEEDS_SQL_OPTIMIZATION_MODE');
 
         if (Tools::getValue('limit')) {
             $limit_string = ' LIMIT ' . implode(',', array_map('intval', explode(',', Tools::getValue('limit'))));
         } else {
-            $limit_string = ' LIMIT 0, ' . (int) Configuration::get('CHANNABLE_DEFAULT_PAGE_SIZE');
+            $limit_string = ' LIMIT 0, ' . (int) Configuration::get('GIROFEEDS_DEFAULT_PAGE_SIZE');
         }
         $product_ids_in = [];
         if ($sql_optimization_mode) {
@@ -128,14 +133,14 @@ class ChannableFeedModuleFrontController extends ModuleFrontController
                        p.id_product
                   FROM
                        ' . _DB_PREFIX_ . 'product p
-				  JOIN ' . _DB_PREFIX_ . 'product_shop ps ON (p.id_product = ps.id_product AND ps.id_shop = \'' . (int) Context::getContext()->shop->id . '\' ' . (Configuration::get('CHANNABLE_DISABLE_INACTIVE') == '1' ? ' AND ps.active = 1' : '') . ')
-                       ' . (Configuration::get('CHANNABLE_DISABLE_OUT_OF_STOCK') == '1' ?
+				  JOIN ' . _DB_PREFIX_ . 'product_shop ps ON (p.id_product = ps.id_product AND ps.id_shop = \'' . (int) Context::getContext()->shop->id . '\' ' . (Configuration::get('GIROFEEDS_DISABLE_INACTIVE') == '1' ? ' AND ps.active = 1' : '') . ')
+                       ' . (Configuration::get('GIROFEEDS_DISABLE_OUT_OF_STOCK') == '1' ?
                            ' LEFT JOIN ' . _DB_PREFIX_ . 'stock_available sav ON (sav.`id_product` = p.`id_product` AND sav.`id_product_attribute` = 0 ' . StockAvailable::addSqlShopRestriction(null, null, 'sav') . ')
                        ' : '') . '
                  WHERE
         	           ' . (isset($_GET['manual_product_id']) ? ' p.id_product IN (\'' . pSQL($_GET['manual_product_id']) . '\')  ' : '1') . '
-                       ' . (Configuration::get('CHANNABLE_DISABLE_INACTIVE') == '1' ? ' AND (ps.active = 1) ' : '') . '
-            		   ' . (Configuration::get('CHANNABLE_DISABLE_OUT_OF_STOCK') == '1' ? ' AND (sav.quantity > 0) ' : '') . '
+                       ' . (Configuration::get('GIROFEEDS_DISABLE_INACTIVE') == '1' ? ' AND (ps.active = 1) ' : '') . '
+            		   ' . (Configuration::get('GIROFEEDS_DISABLE_OUT_OF_STOCK') == '1' ? ' AND (sav.quantity > 0) ' : '') . '
                        ' . $this->sqlHook('product_ids_where') . '
               GROUP BY p.id_product
               ORDER BY p.id_product ' . $limit_string;
@@ -155,17 +160,17 @@ class ChannableFeedModuleFrontController extends ModuleFrontController
                   FROM
                        ' . _DB_PREFIX_ . 'product p
                   JOIN
-                  	   ' . _DB_PREFIX_ . 'product_shop ps ON (p.id_product = ps.id_product AND ps.id_shop = \'' . (int) Context::getContext()->shop->id . '\' ' . (Configuration::get('CHANNABLE_DISABLE_INACTIVE') == '1' ? ' AND ps.active = 1' : '') . ')
+                  	   ' . _DB_PREFIX_ . 'product_shop ps ON (p.id_product = ps.id_product AND ps.id_shop = \'' . (int) Context::getContext()->shop->id . '\' ' . (Configuration::get('GIROFEEDS_DISABLE_INACTIVE') == '1' ? ' AND ps.active = 1' : '') . ')
              LEFT JOIN
                        ' . _DB_PREFIX_ . 'product_attribute pa ON (p.id_product = pa.id_product ' . $this->getAttributesDisabled('pa') . ')
              LEFT JOIN
                        ' . _DB_PREFIX_ . 'product_attribute_shop pas ON (pa.id_product_attribute = pas.id_product_attribute OR pa.id_product_attribute IS NULL)
-                       ' . (Configuration::get('CHANNABLE_DISABLE_OUT_OF_STOCK') == '1' ? ' LEFT JOIN ' . _DB_PREFIX_ . 'stock_available pq ON (p.id_product = pq.id_product) ' : '') . '
+                       ' . (Configuration::get('GIROFEEDS_DISABLE_OUT_OF_STOCK') == '1' ? ' LEFT JOIN ' . _DB_PREFIX_ . 'stock_available pq ON (p.id_product = pq.id_product) ' : '') . '
                  WHERE 
         	           ' . (isset($_GET['manual_product_id']) ? ' p.id_product IN (\'' . pSQL($_GET['manual_product_id']) . '\')  ' : '1') . '
                    AND (pas.id_shop = \'' . (int) Context::getContext()->shop->id . '\' OR pas.id_shop IS NULL)
-                       ' . (Configuration::get('CHANNABLE_DISABLE_INACTIVE') == '1' ? ' AND (ps.active = 1) ' : '') . '
-                       ' . (Configuration::get('CHANNABLE_DISABLE_OUT_OF_STOCK') == '1' ? ' AND (pq.quantity > 0) ' : '') . '
+                       ' . (Configuration::get('GIROFEEDS_DISABLE_INACTIVE') == '1' ? ' AND (ps.active = 1) ' : '') . '
+                       ' . (Configuration::get('GIROFEEDS_DISABLE_OUT_OF_STOCK') == '1' ? ' AND (pq.quantity > 0) ' : '') . '
                        ' . $this->sqlHook('product_ids_where') . '
               GROUP BY p.id_product, COALESCE(pa.id_product_attribute, 0)
               ORDER BY p.id_product ' . $limit_string;
@@ -182,9 +187,9 @@ class ChannableFeedModuleFrontController extends ModuleFrontController
         }
 
         if ($this->multiquerymode) {
-            $sql = $this->getMultiqueryMode(!Channable::useCache(), $product_ids_in, $limit_string);
+            $sql = $this->getMultiqueryMode(!Girofeeds::useCache(), $product_ids_in, $limit_string);
         } else {
-            $sql = $this->getDefaultMode(!Channable::useCache(), $product_ids_in, $limit_string, $default_country);
+            $sql = $this->getDefaultMode(!Girofeeds::useCache(), $product_ids_in, $limit_string, $default_country);
         }
 
         if ($this->time_debug) {
@@ -203,13 +208,13 @@ class ChannableFeedModuleFrontController extends ModuleFrontController
 
         header('Content-Type: application/json');
         $items = [];
-        header('Page-Size: ' . Configuration::get('CHANNABLE_DEFAULT_PAGE_SIZE'));
+        header('Page-Size: ' . Configuration::get('GIROFEEDS_DEFAULT_PAGE_SIZE'));
         $tracked_cache = [];
         $tracked_cache_new = [];
 
         if ($results = Db::getInstance()->ExecuteS($sql)) {
             foreach ($results as $row) {
-                $productJsonCache = ChannableCache::getByKey('PRODUCT_JSON_' . $row['id'], self::$cache_lifetime_products, true, (int) Context::getContext()->language->id);
+                $productJsonCache = GirofeedsCache::getByKey('PRODUCT_JSON_' . $row['id'], self::$cache_lifetime_products, true, (int) Context::getContext()->language->id);
                 if ((int) $productJsonCache->id > 0 && !isset($_GET['rebuild_cache']) && $productJsonCache->cache_value != '' && !is_null(json_decode($productJsonCache->cache_value, true))) {
                     $items[] = json_decode(
                         $productJsonCache->cache_value, true
@@ -218,13 +223,13 @@ class ChannableFeedModuleFrontController extends ModuleFrontController
                         $tracked_cache[] = (int) $productJsonCache->id;
                     }
                 } else {
-                    if (Channable::useCache()) {
+                    if (Girofeeds::useCache()) {
                         $row = $this->getProductDetails($row['id']);
                     }
                     if (!array_key_exists('parent_id', $row)) {
                         continue;
                     }
-                    $treeCache = ChannableCache::getByKey('CAT_TREE_' . $row['id_category_default'], self::$cache_lifetime_categories, true, (int) Context::getContext()->language->id);
+                    $treeCache = GirofeedsCache::getByKey('CAT_TREE_' . $row['id_category_default'], self::$cache_lifetime_categories, true, (int) Context::getContext()->language->id);
                     if ((int) $treeCache->id > 0) {
                         $row['product_category'] = $treeCache->cache_value;
                     } else {
@@ -238,17 +243,17 @@ class ChannableFeedModuleFrontController extends ModuleFrontController
                         $row['product_category'] = join(' > ', $tmp);
                     }
 
-                    $productCategoriesCache = ChannableCache::getByKey('PROD_CATS_' . $row['parent_id'], self::$cache_lifetime_categories, true, (int) Context::getContext()->language->id);
+                    $productCategoriesCache = GirofeedsCache::getByKey('PROD_CATS_' . $row['parent_id'], self::$cache_lifetime_categories, true, (int) Context::getContext()->language->id);
                     if ((int) $productCategoriesCache->id > 0) {
                         $row['categories'] = json_decode($productCategoriesCache->cache_value, true);
                     } else {
-                        if (Configuration::get('CHANNABLE_FEEDMODE_ALTERNATIVE') == 1 || !isset($row['categories_id'])) {
+                        if (Configuration::get('GIROFEEDS_FEEDMODE_ALTERNATIVE') == 1 || !isset($row['categories_id'])) {
                             $row['categories_ids'] = $this->fetchCategories($row['parent_id']);
                         }
                         $product_categories_raw_titles = [];
                         $product_categories_raw = [];
                         foreach (explode(',', $row['categories_ids']) as $category_id) {
-                            $treeCache = ChannableCache::getByKey('CAT_TREE_' . (int) $category_id, self::$cache_lifetime_categories, true, (int) Context::getContext()->language->id);
+                            $treeCache = GirofeedsCache::getByKey('CAT_TREE_' . (int) $category_id, self::$cache_lifetime_categories, true, (int) Context::getContext()->language->id);
                             if ((int) $treeCache->id > 0) {
                                 $product_categories_raw_title = $treeCache->cache_value;
                             } else {
@@ -300,7 +305,7 @@ class ChannableFeedModuleFrontController extends ModuleFrontController
                         }
                     }
 
-                    if (Configuration::get('CHANNABLE_FEEDMODE_ALTERNATIVE') != 1) {
+                    if (Configuration::get('GIROFEEDS_FEEDMODE_ALTERNATIVE') != 1) {
                         $row['supplier'] = (int) $row['id_supplier'] > 0 ? Supplier::getNameById($row['id_supplier']) : '';
                         unset($row['id_supplier']);
                         if (isset($row['combination'])) {
@@ -368,15 +373,15 @@ class ChannableFeedModuleFrontController extends ModuleFrontController
 
                     $delivery_period = $row['stock'] > 0 ? $shipping_time_available : $shipping_time_outofstock;
 
-                    if (Configuration::get('CHANNABLE_FEEDMODE_SKIP_SHIPPING') == '1') {
+                    if (Configuration::get('GIROFEEDS_FEEDMODE_SKIP_SHIPPING') == '1') {
                         $delivery_price = false;
                     } else {
                         if ($id_carrier == -1) {
                             $cart = Context::getContext()->cart;
-                            if (isset($channable_default_address_id)) {
-                                $cart->id_customer = $channable_customer_id;
-                                $cart->id_address_delivery = (int) $channable_default_address_id;
-                                $cart->id_address_invoice = (int) $channable_default_address_id;
+                            if (isset($girofeeds_default_address_id)) {
+                                $cart->id_customer = $girofeeds_customer_id;
+                                $cart->id_address_delivery = (int) $girofeeds_default_address_id;
+                                $cart->id_address_invoice = (int) $girofeeds_default_address_id;
                                 $cart->id_guest = 0;
                             }
                             $cart->add();
@@ -464,10 +469,10 @@ class ChannableFeedModuleFrontController extends ModuleFrontController
                     );
 
                     if (!isset($row['tax_rate']) || is_null($row['tax_rate'])) {
-                        if (isset($channable_default_address_id)) {
-                            Context::getContext()->cart->id_customer = $channable_customer_id;
-                            Context::getContext()->cart->id_address_delivery = (int) $channable_default_address_id;
-                            Context::getContext()->cart->id_address_invoice = (int) $channable_default_address_id;
+                        if (isset($girofeeds_default_address_id)) {
+                            Context::getContext()->cart->id_customer = $girofeeds_customer_id;
+                            Context::getContext()->cart->id_address_delivery = (int) $girofeeds_default_address_id;
+                            Context::getContext()->cart->id_address_invoice = (int) $girofeeds_default_address_id;
                             Context::getContext()->cart->id_guest = 0;
                         }
 
@@ -715,7 +720,7 @@ class ChannableFeedModuleFrontController extends ModuleFrontController
                         }
 
                         Hook::exec(
-                            'channableFeed',
+                            'girofeedsFeed',
                             [
                                 'item' => &$row,
                             ]
@@ -726,12 +731,12 @@ class ChannableFeedModuleFrontController extends ModuleFrontController
                     $productJsonCache->cache_value = json_encode($row);
                     $productJsonCache->save();
 
-                    ChannableProductsQueue::deleteById($row['parent_id']);
+                    GirofeedsProductsQueue::deleteById($row['parent_id']);
 
                     $add_product_to_feed = true;
 
                     Hook::exec(
-                        'channableAddProductToFeedCheck',
+                        'girofeedsAddProductToFeedCheck',
                         [
                             'add_product_to_feed' => &$add_product_to_feed,
                             'item' => &$row,
@@ -778,7 +783,7 @@ class ChannableFeedModuleFrontController extends ModuleFrontController
      */
     protected function getPossibleCombinationQuery()
     {
-        if (Configuration::get('CHANNABLE_FEEDMODE_ALTERNATIVE') != 1) {
+        if (Configuration::get('GIROFEEDS_FEEDMODE_ALTERNATIVE') != 1) {
             return 'GROUP_CONCAT(DISTINCT (CONCAT(pgl.name, \'' . self::$combination_desc_separator . '\' , pal.name))
                     SEPARATOR \'' . self::$combination_separator . '\') as combination,';
         }
@@ -791,7 +796,7 @@ class ChannableFeedModuleFrontController extends ModuleFrontController
      */
     protected function getPossibleSpecificationsQuery()
     {
-        if (Configuration::get('CHANNABLE_FEEDMODE_ALTERNATIVE') != 1) {
+        if (Configuration::get('GIROFEEDS_FEEDMODE_ALTERNATIVE') != 1) {
             return 'GROUP_CONCAT(DISTINCT (CONCAT(fl.name, \'' . self::$combination_desc_separator . '\' , fvl.value))
                     SEPARATOR \'' . self::$combination_separator . '\') as specifications,';
         }
@@ -804,7 +809,7 @@ class ChannableFeedModuleFrontController extends ModuleFrontController
      */
     protected function getPossibleCategoriesQuery()
     {
-        if (Configuration::get('CHANNABLE_FEEDMODE_ALTERNATIVE') != 1) {
+        if (Configuration::get('GIROFEEDS_FEEDMODE_ALTERNATIVE') != 1) {
             return 'GROUP_CONCAT(DISTINCT cpl2.id_category SEPARATOR \',\') as categories_ids,
                     cpl.name as product_category, ';
         }
@@ -817,7 +822,7 @@ class ChannableFeedModuleFrontController extends ModuleFrontController
      */
     protected function getPossibleCombinationGroupLangJoin()
     {
-        if (Configuration::get('CHANNABLE_FEEDMODE_ALTERNATIVE') != 1) {
+        if (Configuration::get('GIROFEEDS_FEEDMODE_ALTERNATIVE') != 1) {
             return 'LEFT JOIN
                 ' . _DB_PREFIX_ . 'attribute_group_lang pgl ON (pgl.id_attribute_group = pattrib.id_attribute_group)';
         }
@@ -830,7 +835,7 @@ class ChannableFeedModuleFrontController extends ModuleFrontController
      */
     protected function getPossibleFeaturesJoins()
     {
-        if (Configuration::get('CHANNABLE_FEEDMODE_ALTERNATIVE') != 1) {
+        if (Configuration::get('GIROFEEDS_FEEDMODE_ALTERNATIVE') != 1) {
             return 'LEFT JOIN
                 ' . _DB_PREFIX_ . 'feature_product fp ON (fp.id_product = p.id_product)
                     LEFT JOIN
@@ -847,7 +852,7 @@ class ChannableFeedModuleFrontController extends ModuleFrontController
      */
     protected function getPossibleCategoriesJoins()
     {
-        if (Configuration::get('CHANNABLE_FEEDMODE_ALTERNATIVE') != 1) {
+        if (Configuration::get('GIROFEEDS_FEEDMODE_ALTERNATIVE') != 1) {
             return 'LEFT JOIN
                 ' . _DB_PREFIX_ . 'category_lang cpl ON (cpl.id_category = p.id_category_default)
                     LEFT JOIN
@@ -864,7 +869,7 @@ class ChannableFeedModuleFrontController extends ModuleFrontController
      */
     protected function getPossibleCombinationWhere()
     {
-        if (Configuration::get('CHANNABLE_FEEDMODE_ALTERNATIVE') != 1) {
+        if (Configuration::get('GIROFEEDS_FEEDMODE_ALTERNATIVE') != 1) {
             return 'AND
                 (pgl.id_lang = pl.id_lang OR pgl.id_lang IS NULL)';
         }
@@ -877,7 +882,7 @@ class ChannableFeedModuleFrontController extends ModuleFrontController
      */
     protected function getPossibleFeaturesWhere()
     {
-        if (Configuration::get('CHANNABLE_FEEDMODE_ALTERNATIVE') != 1) {
+        if (Configuration::get('GIROFEEDS_FEEDMODE_ALTERNATIVE') != 1) {
             return 'AND
                 (fl.id_lang = pl.id_lang OR fl.id_lang IS NULL)
                     AND
@@ -892,7 +897,7 @@ class ChannableFeedModuleFrontController extends ModuleFrontController
      */
     protected function getPossibleCategoriesWhere()
     {
-        if (Configuration::get('CHANNABLE_FEEDMODE_ALTERNATIVE') != 1) {
+        if (Configuration::get('GIROFEEDS_FEEDMODE_ALTERNATIVE') != 1) {
             return 'AND
                 (cpl.id_lang = pl.id_lang OR cpl.id_lang IS NULL)
                     AND
@@ -931,7 +936,7 @@ class ChannableFeedModuleFrontController extends ModuleFrontController
      */
     protected function fetchCategories($id_product)
     {
-        $cache = ChannableCache::getByKey('PRODUCTS_CAT_' . (int) $id_product, self::$cache_lifetime_categories, true, (int) Context::getContext()->language->id);
+        $cache = GirofeedsCache::getByKey('PRODUCTS_CAT_' . (int) $id_product, self::$cache_lifetime_categories, true, (int) Context::getContext()->language->id);
         if ($cache->id > 0) {
             return $cache->cache_value;
         } else {
@@ -967,7 +972,7 @@ class ChannableFeedModuleFrontController extends ModuleFrontController
      */
     protected function getManualAssignedFeedFields()
     {
-        $feedfields = ChannableFeedfield::getAllFeedfields();
+        $feedfields = GirofeedsFeedfield::getAllFeedfields();
         $ret = '';
         if (is_array($feedfields)) {
             foreach ($feedfields as $ff) {
@@ -984,7 +989,7 @@ class ChannableFeedModuleFrontController extends ModuleFrontController
     {
         $return = [];
         $tmpSpecificPriceFields = [];
-        $feedfields = ChannableFeedfield::getAllFeedfields();
+        $feedfields = GirofeedsFeedfield::getAllFeedfields();
         if (is_array($feedfields)) {
             foreach ($feedfields as $ff) {
                 if ($ff['tablename'] == 'specific_price') {
@@ -1015,7 +1020,7 @@ class ChannableFeedModuleFrontController extends ModuleFrontController
     {
         if (is_null($this->feedHasSpecificPrices)) {
             $this->feedHasSpecificPrices = false;
-            $feedfields = ChannableFeedfield::getAllFeedfields();
+            $feedfields = GirofeedsFeedfield::getAllFeedfields();
             foreach ($feedfields as $ff) {
                 if ($ff['tablename'] == 'specific_price') {
                     $this->feedHasSpecificPrices = true;
@@ -1059,7 +1064,7 @@ class ChannableFeedModuleFrontController extends ModuleFrontController
      */
     protected function getParentsCategories($id_category, $allCategories)
     {
-        $cache = ChannableCache::getByKey('PARENTS_CAT_' . (int) $id_category, self::$cache_lifetime_categories, true, (int) Context::getContext()->language->id);
+        $cache = GirofeedsCache::getByKey('PARENTS_CAT_' . (int) $id_category, self::$cache_lifetime_categories, true, (int) Context::getContext()->language->id);
         if ((int) $cache->id > 0) {
             return json_decode($cache->cache_value, true);
         } else {
@@ -1092,12 +1097,12 @@ class ChannableFeedModuleFrontController extends ModuleFrontController
     public function getAllCategories()
     {
         if (!self::$all_categories_cache) {
-            $allCategoriesCache = ChannableCache::getByKey('ALL_CATEGORIES_INFOS_' . (int) Context::getContext()->language->id, self::$cache_lifetime_categories, true, (int) Context::getContext()->language->id);
+            $allCategoriesCache = GirofeedsCache::getByKey('ALL_CATEGORIES_INFOS_' . (int) Context::getContext()->language->id, self::$cache_lifetime_categories, true, (int) Context::getContext()->language->id);
             if ((int) $allCategoriesCache->id > 0) {
                 $allCategories = json_decode($allCategoriesCache->cache_value, true);
             } else {
                 $allCategories = [];
-                $allCategoriesTmp = Channable::getSimpleCategoriesWithParentInfos((int) Context::getContext()->language->id);
+                $allCategoriesTmp = Girofeeds::getSimpleCategoriesWithParentInfos((int) Context::getContext()->language->id);
                 foreach ($allCategoriesTmp as $allCategoryTmp) {
                     $allCategories[$allCategoryTmp['id_category']] = $allCategoryTmp;
                 }
@@ -1254,7 +1259,7 @@ class ChannableFeedModuleFrontController extends ModuleFrontController
             FROM
                 ' . _DB_PREFIX_ . 'product p
                 	JOIN
-                ' . _DB_PREFIX_ . 'product_shop ps ON (p.id_product = ps.id_product AND ps.id_shop = \'' . (int) Context::getContext()->shop->id . '\' ' . (Configuration::get('CHANNABLE_DISABLE_INACTIVE') == '1' ? ' AND ps.active = 1' : '') . ')
+                ' . _DB_PREFIX_ . 'product_shop ps ON (p.id_product = ps.id_product AND ps.id_shop = \'' . (int) Context::getContext()->shop->id . '\' ' . (Configuration::get('GIROFEEDS_DISABLE_INACTIVE') == '1' ? ' AND ps.active = 1' : '') . ')
                     LEFT JOIN
                 ' . _DB_PREFIX_ . 'product_attribute pa ON (p.id_product = pa.id_product ' . $this->getAttributesDisabled('pa') . ')
                     LEFT JOIN
@@ -1308,8 +1313,8 @@ class ChannableFeedModuleFrontController extends ModuleFrontController
                 ' . $this->getPossibleCombinationWhere() . '
                 ' . $this->getPossibleCategoriesWhere() . '
                 ' . $this->getPossibleFeaturesWhere() . '
-                ' . (Configuration::get('CHANNABLE_DISABLE_INACTIVE') == '1' ? ' AND (ps.active = 1) ' : '') . '
-                ' . (Configuration::get('CHANNABLE_DISABLE_OUT_OF_STOCK') == '1' ? ' AND (pq.quantity > 0) ' : '') . '
+                ' . (Configuration::get('GIROFEEDS_DISABLE_INACTIVE') == '1' ? ' AND (ps.active = 1) ' : '') . '
+                ' . (Configuration::get('GIROFEEDS_DISABLE_OUT_OF_STOCK') == '1' ? ' AND (pq.quantity > 0) ' : '') . '
             GROUP BY CONCAT(COALESCE(pa.id_product_attribute, \'\'), \'--\', p.id_product)
             ORDER BY p.id_product, pac.id_attribute ' . ((isset($product_ids_in) && sizeof($product_ids_in) > 0) ? '' : $limit_string);
         } else {
@@ -1323,7 +1328,7 @@ class ChannableFeedModuleFrontController extends ModuleFrontController
             FROM
                 ' . _DB_PREFIX_ . 'product p
                 	JOIN
-                ' . _DB_PREFIX_ . 'product_shop ps ON (p.id_product = ps.id_product AND ps.id_shop = \'' . (int) Context::getContext()->shop->id . '\' ' . (Configuration::get('CHANNABLE_DISABLE_INACTIVE') == '1' ? ' AND ps.active = 1' : '') . ')
+                ' . _DB_PREFIX_ . 'product_shop ps ON (p.id_product = ps.id_product AND ps.id_shop = \'' . (int) Context::getContext()->shop->id . '\' ' . (Configuration::get('GIROFEEDS_DISABLE_INACTIVE') == '1' ? ' AND ps.active = 1' : '') . ')
                     LEFT JOIN
                 ' . _DB_PREFIX_ . 'product_attribute pa ON (p.id_product = pa.id_product ' . $this->getAttributesDisabled('pa') . ')
             WHERE
@@ -1381,7 +1386,7 @@ class ChannableFeedModuleFrontController extends ModuleFrontController
             FROM
                 ' . _DB_PREFIX_ . 'product p
                 	JOIN
-                ' . _DB_PREFIX_ . 'product_shop ps ON (p.id_product = ps.id_product AND ps.id_shop = \'' . (int) Context::getContext()->shop->id . '\' ' . (Configuration::get('CHANNABLE_DISABLE_INACTIVE') == '1' ? ' AND ps.active = 1' : '') . ')
+                ' . _DB_PREFIX_ . 'product_shop ps ON (p.id_product = ps.id_product AND ps.id_shop = \'' . (int) Context::getContext()->shop->id . '\' ' . (Configuration::get('GIROFEEDS_DISABLE_INACTIVE') == '1' ? ' AND ps.active = 1' : '') . ')
                     LEFT JOIN
                 ' . _DB_PREFIX_ . 'product_attribute pa ON (p.id_product = pa.id_product ' . $this->getAttributesDisabled('pa') . ')
                     LEFT JOIN
@@ -1405,8 +1410,8 @@ class ChannableFeedModuleFrontController extends ModuleFrontController
                 pl.id_lang = \'' . (int) Context::getContext()->language->id . '\'
                     AND
                 pl.id_shop = \'' . (int) Context::getContext()->shop->id . '\'
-                ' . (Configuration::get('CHANNABLE_DISABLE_INACTIVE') == '1' ? ' AND (ps.active = 1) ' : '') . '
-                ' . (Configuration::get('CHANNABLE_DISABLE_OUT_OF_STOCK') == '1' ? ' AND (' . (Configuration::get('PS_STOCK_MANAGEMENT') ? 'sav.quantity' : 'pq.quantity') . ' > 0) ' : '') . '
+                ' . (Configuration::get('GIROFEEDS_DISABLE_INACTIVE') == '1' ? ' AND (ps.active = 1) ' : '') . '
+                ' . (Configuration::get('GIROFEEDS_DISABLE_OUT_OF_STOCK') == '1' ? ' AND (' . (Configuration::get('PS_STOCK_MANAGEMENT') ? 'sav.quantity' : 'pq.quantity') . ' > 0) ' : '') . '
             GROUP BY CONCAT(COALESCE(pa.id_product_attribute, \'\'), \'--\', p.id_product)
             ORDER BY p.id_product ' . ((isset($product_ids_in) && sizeof($product_ids_in) > 0) ? '' : $limit_string);
         } else {
@@ -1420,7 +1425,7 @@ class ChannableFeedModuleFrontController extends ModuleFrontController
             FROM
                 ' . _DB_PREFIX_ . 'product p
                 	JOIN
-                ' . _DB_PREFIX_ . 'product_shop ps ON (p.id_product = ps.id_product AND ps.id_shop = \'' . (int) Context::getContext()->shop->id . '\' ' . (Configuration::get('CHANNABLE_DISABLE_INACTIVE') == '1' ? ' AND ps.active = 1' : '') . ')
+                ' . _DB_PREFIX_ . 'product_shop ps ON (p.id_product = ps.id_product AND ps.id_shop = \'' . (int) Context::getContext()->shop->id . '\' ' . (Configuration::get('GIROFEEDS_DISABLE_INACTIVE') == '1' ? ' AND ps.active = 1' : '') . ')
                     LEFT JOIN
                 ' . _DB_PREFIX_ . 'product_attribute pa ON (p.id_product = pa.id_product ' . $this->getAttributesDisabled('pa') . ')
             WHERE
@@ -1435,7 +1440,7 @@ class ChannableFeedModuleFrontController extends ModuleFrontController
 
     protected function getAttributesDisabled($tableName)
     {
-        if (Configuration::get('CHANNABLE_DISABLE_VARIANTS') == '1') {
+        if (Configuration::get('GIROFEEDS_DISABLE_VARIANTS') == '1') {
             return ' AND pa.id_product_attribute < -1 ';
         }
 
@@ -1445,7 +1450,7 @@ class ChannableFeedModuleFrontController extends ModuleFrontController
     protected function sqlHook($location)
     {
         return Hook::exec(
-            'channableSql',
+            'girofeedsSql',
             [
                 'location' => $location,
             ]
@@ -1454,7 +1459,7 @@ class ChannableFeedModuleFrontController extends ModuleFrontController
 
     protected function getConfiguredOrdersFields()
     {
-        $feedfields = ChannableFeedfield::getAllFeedfields();
+        $feedfields = GirofeedsFeedfield::getAllFeedfields();
         $ordersFields = [];
         if (is_array($feedfields)) {
             foreach ($feedfields as $ff) {
@@ -1468,7 +1473,7 @@ class ChannableFeedModuleFrontController extends ModuleFrontController
 
     protected function fetchProductOrdersCounts($id_product)
     {
-        $orderStatusId = (int) Configuration::get('CHANNABLE_ORDERS_COUNT_STATUS');
+        $orderStatusId = (int) Configuration::get('GIROFEEDS_ORDERS_COUNT_STATUS');
 
         if ($orderStatusId <= 0) {
             return [

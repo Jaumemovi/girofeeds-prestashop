@@ -26,19 +26,19 @@
 * to avoid any conflicts with others containers.
 */
 
-.channable_logo {
+.girofeeds_logo {
 	float: right;
 }
-.channable_clear {
+.girofeeds_clear {
 	clear: both;
 }
-.channable_configuration label {
+.girofeeds_configuration label {
 	font-weight: normal;
 }
-.channable_orderstates_config_head {
+.girofeeds_orderstates_config_head {
 	font-weight: bold;
 }
-.channable_top_marged {
+.girofeeds_top_marged {
 	margin-top: 20px !important;
 }
 #carriers_fields .carrier_entity_selector,
@@ -46,18 +46,18 @@
 #customer_group_fields .cga_selector,
 select[name=fields_available],
 select.country_entity_selector,
-.channable_assigned_fields_row {
+.girofeeds_assigned_fields_row {
 	margin-bottom: 4px;
 }
 #assign_fields_head {
 	font-weight: bold;
 }
-.channable-trash {
+.girofeeds-trash {
 	font-size: 20px;
 	line-height: 20px;
 	vertical-align: middle;
 	margin-top: 3px;
 }
-.channable-trash:hover {
+.girofeeds-trash:hover {
 	cursor: pointer;
 }

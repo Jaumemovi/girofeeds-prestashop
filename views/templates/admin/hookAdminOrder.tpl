@@ -25,7 +25,7 @@
 
 <div class="panel {if $isHigher176}card{/if}">
 	{if $additionalData}
-		<h3>{l s='Additional Channable order data' mod='channable'}</h3>
+		<h3>{l s='Additional Girofeeds order data' mod='girofeeds'}</h3>
 		<div class="{if $isHigher176}card-body{/if}">
 			<form method="post">
 				<div class="table-responsive">
@@ -36,7 +36,7 @@
 									Return Tracking Code:
 								</td>
 								<td>
-									<input type="text" name="channable_return_code" value="{$orderReturnCode|escape:'htmlall':'UTF-8'}" class="form-control" id="channable_return_code">
+									<input type="text" name="girofeeds_return_code" value="{$orderReturnCode|escape:'htmlall':'UTF-8'}" class="form-control" id="girofeeds_return_code">
 								</td>
 								<td>
 									<button type="submit" class="btn btn-primary btn-sm">{l s='Save'}</button>
@@ -52,12 +52,12 @@
 						<tr>
 							<th>
 								<span class="title_box">
-									{l s='Field' mod='channable'}
+									{l s='Field' mod='girofeeds'}
 								</span>
 							</th>
 							<th>
 								<span class="title_box">
-									{l s='Value' mod='channable'}
+									{l s='Value' mod='girofeeds'}
 								</span>
 							</th>
 						</tr>
