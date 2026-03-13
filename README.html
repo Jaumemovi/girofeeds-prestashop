@@ -1,0 +1,41 @@
+<h1 id="girofeeds---prestashop-feed-management-module">Girofeeds - PrestaShop Feed Management Module</h1>
+<p>Feed management module for PrestaShop. Generate product feeds, manage orders, and synchronize stock with external marketplaces and channels.</p>
+<h2 id="attribution">Attribution</h2>
+<p>This module is based on the <strong>Channable PrestaShop addon</strong> developed by <a href="https://www.patworx.de/">patworx multimedia GmbH</a>.</p>
+<ul>
+<li><strong>Original work:</strong> 2007-2025 patworx multimedia GmbH</li>
+<li><strong>Modifications:</strong> 2025-2026 <a href="https://girofeeds.com/">Moviendote</a> (hello@girofeeds.com)</li>
+</ul>
+<p>Licensed under the <a href="http://opensource.org/licenses/afl-3.0.php">Academic Free License (AFL 3.0)</a>.</p>
+<h2 id="requirements">Requirements</h2>
+<ul>
+<li>PrestaShop 1.5 or later (tested up to PS 9.x)</li>
+<li>PHP 7.0 or later</li>
+</ul>
+<h2 id="installation">Installation</h2>
+<ol type="1">
+<li>Download the latest release ZIP</li>
+<li>In PrestaShop Back Office, go to <strong>Modules &gt; Module Manager</strong></li>
+<li>Click <strong>Upload a module</strong> and select the ZIP file</li>
+<li>Configure the module under <strong>Modules &gt; Girofeeds</strong></li>
+</ol>
+<h2 id="configuration">Configuration</h2>
+<p>After installation, configure the module in your PrestaShop back office:</p>
+<ul>
+<li><strong>API Key</strong>: Generated automatically; used for feed access and order/product API endpoints</li>
+<li><strong>Feed Settings</strong>: Select products, categories, languages, and currencies to include in your feed</li>
+<li><strong>Expert Fields</strong>: Map additional database fields to your feed output</li>
+<li><strong>Order Settings</strong>: Configure marketplace order import (carrier mapping, status mapping, customer groups)</li>
+<li><strong>Stock Sync</strong>: Enable stock update webhooks for real-time inventory sync</li>
+<li><strong>Logging</strong>: Set log level (Error / Info / Debug) for troubleshooting</li>
+</ul>
+<h2 id="build">Build</h2>
+<p>To build a distributable ZIP package:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true"></a><span class="ex">npm</span> install</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true"></a><span class="ex">npm</span> run zip</span></code></pre></div>
+<p>This creates <code>girofeeds-v{version}.zip</code> ready for PrestaShop upload.</p>
+<h2 id="documentation">Documentation</h2>
+<ul>
+<li><a href="CHANGELOG.md">CHANGELOG.md</a> - Version history</li>
+<li><a href="API_EXAMPLES.md">API_EXAMPLES.md</a> - Product update API examples</li>
+</ul>
