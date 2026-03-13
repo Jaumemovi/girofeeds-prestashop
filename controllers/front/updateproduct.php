@@ -2229,6 +2229,24 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
             }
             $debug['download_success'] = true;
 
+            // Check if the new image is identical to the current cover image
+            $new_image_hash = md5($image_content);
+            $debug['new_image_hash'] = $new_image_hash;
+            $current_cover = $this->getCurrentCoverPath((int) $product->id);
+            if ($current_cover && file_exists($current_cover)) {
+                $current_hash = md5_file($current_cover);
+                $debug['current_image_hash'] = $current_hash;
+                if ($new_image_hash === $current_hash) {
+                    $debug['skipped'] = 'identical_image';
+                    return [
+                        'success' => true,
+                        'updated_fields' => [['field' => 'image', 'value' => 'unchanged (identical)']],
+                        'errors' => [],
+                        'debug' => $debug
+                    ];
+                }
+            }
+
             $temp_file = $this->saveTempImage($image_content, $image_url);
             if ($temp_file === false) {
                 return [
@@ -2289,6 +2307,27 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
                 'debug' => $debug
             ];
         }
+    }
+
+    private function getCurrentCoverPath($id_product)
+    {
+        $cover = Db::getInstance()->getRow('
+            SELECT i.id_image
+            FROM ' . _DB_PREFIX_ . 'image i
+            INNER JOIN ' . _DB_PREFIX_ . 'image_shop ish
+                ON i.id_image = ish.id_image AND ish.id_shop = ' . (int) Context::getContext()->shop->id . '
+            WHERE i.id_product = ' . (int) $id_product . '
+                AND ish.cover = 1
+        ');
+
+        if (!$cover || empty($cover['id_image'])) {
+            return false;
+        }
+
+        $id_image = (int) $cover['id_image'];
+        $path = _PS_PROD_IMG_DIR_ . implode('/', str_split((string) $id_image)) . '/' . $id_image . '.jpg';
+
+        return $path;
     }
 
     private function isFirebaseStorageUrl($url)
