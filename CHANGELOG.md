@@ -1,6 +1,7 @@
 # Changelog
 
 ### 3.3.15
+- **Improved image upload error diagnostics**: added detailed validation, lang, and DB error info when `Image::add()` fails in updateproduct endpoint
 - **PrestaShop Marketplace validation fixes**
 - Fixed copyright headers: single @author/@copyright tag across all PHP, JS, and TPL files
 - Replaced `Context::getContext()` with `$this->context` in all controllers and module class

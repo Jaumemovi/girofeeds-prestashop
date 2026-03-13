@@ -2449,7 +2449,26 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
                 ];
             }
 
-            return ['image_id' => false, 'error' => 'Failed to add image object', 'prestashop_path' => null];
+            $validation_errors = $image->validateFields(false, true);
+            $lang_errors = $image->validateFieldsLang(false, true);
+            $error_detail = 'Failed to add image object';
+            if ($validation_errors !== true) {
+                $error_detail .= ' | Validation: ' . $validation_errors;
+            }
+            if ($lang_errors !== true) {
+                $error_detail .= ' | Lang: ' . $lang_errors;
+            }
+            $error_detail .= ' | id_product: ' . $id_product;
+            $error_detail .= ' | DB error: ' . Db::getInstance()->getMsgError();
+
+            GirofeedsLogger::getInstance()->addLog(
+                $error_detail,
+                1,
+                null,
+                ['product_id' => $id_product, 'image_path' => $image_path]
+            );
+
+            return ['image_id' => false, 'error' => $error_detail, 'prestashop_path' => null];
 
         } catch (Exception $e) {
             GirofeedsLogger::getInstance()->addLog(
