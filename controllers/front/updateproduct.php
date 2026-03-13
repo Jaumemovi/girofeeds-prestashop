@@ -2372,23 +2372,18 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
         try {
             $images = Image::getImages((int) $this->context->language->id, (int) $id_product);
 
-            if (!empty($images)) {
-                foreach ($images as $existing_image) {
-                    if ($existing_image['cover'] == 1) {
-                        Db::getInstance()->update(
-                            'image',
-                            ['cover' => 0],
-                            'id_image = ' . (int) $existing_image['id_image']
-                        );
-
-                        Db::getInstance()->update(
-                            'image_shop',
-                            ['cover' => 0],
-                            'id_image = ' . (int) $existing_image['id_image']
-                        );
-                    }
-                }
-            }
+            // Remove ALL covers for this product before adding new image
+            // This prevents 'Duplicate entry for key id_product_cover' constraint violation
+            Db::getInstance()->execute('
+                UPDATE ' . _DB_PREFIX_ . 'image
+                SET cover = NULL
+                WHERE id_product = ' . (int) $id_product
+            );
+            Db::getInstance()->execute('
+                UPDATE ' . _DB_PREFIX_ . 'image_shop
+                SET cover = NULL
+                WHERE id_product = ' . (int) $id_product
+            );
 
             $image = new Image();
             $image->id_product = (int) $id_product;

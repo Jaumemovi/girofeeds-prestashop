@@ -1,6 +1,7 @@
 # Changelog
 
 ### 3.3.15
+- **Fixed image upload duplicate cover error**: reset all existing covers via direct SQL before `Image::add()` to prevent `id_product_cover` unique constraint violation
 - **Improved image upload error diagnostics**: added detailed validation, lang, and DB error info when `Image::add()` fails in updateproduct endpoint
 - **PrestaShop Marketplace validation fixes**
 - Fixed copyright headers: single @author/@copyright tag across all PHP, JS, and TPL files
