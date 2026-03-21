@@ -36,24 +36,6 @@ $sql[] = 'CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'girofeeds_feedfields` (
     PRIMARY KEY  (`id_girofeeds_feedfields`)
 ) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8;';
 
-$sql[] = 'CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'girofeeds_orders_additional_data` (
-    `id_girofeeds_orders_additional_data` int(11) NOT NULL AUTO_INCREMENT,
-    `id_order` int(11) NOT NULL,
-	`field_in_post` VARCHAR(255) NOT NULL,
-	`value_in_post` VARCHAR(255) NOT NULL,
-    `date_add` DATETIME,
-    PRIMARY KEY  (`id_girofeeds_orders_additional_data`)
-) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8;';
-
-$sql[] = 'CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'girofeeds_orders_additional_data` (
-    `id_girofeeds_orders_additional_data` int(11) NOT NULL AUTO_INCREMENT,
-    `id_order` int(11) NOT NULL,
-	`field_in_post` VARCHAR(255) NOT NULL,
-	`value_in_post` VARCHAR(255) NOT NULL,
-    `date_add` DATETIME,
-    PRIMARY KEY  (`id_girofeeds_orders_additional_data`)
-) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8;';
-
 $sql[] = 'CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'girofeeds_stock_update` (
     `id_girofeeds_stock_update` int(11) NOT NULL AUTO_INCREMENT,
     `id_product` int(11) NOT NULL,
