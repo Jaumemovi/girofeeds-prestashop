@@ -202,7 +202,23 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
         $tracked_cache = [];
         $tracked_cache_new = [];
 
+        $batchOrdersCounts = [];
         if ($results = Db::getInstance()->ExecuteS($sql)) {
+            if (Configuration::get('GIROFEEDS_ENABLE_ORDERS_COUNT') == '1') {
+                $allProductIds = [];
+                foreach ($results as $r) {
+                    if (isset($r['parent_id'])) {
+                        $allProductIds[] = (int) $r['parent_id'];
+                    } elseif (isset($r['id'])) {
+                        $allProductIds[] = (int) $r['id'];
+                    }
+                }
+                $allProductIds = array_unique($allProductIds);
+                if (!empty($allProductIds)) {
+                    $batchOrdersCounts = $this->fetchBatchProductOrdersCounts($allProductIds);
+                }
+            }
+
             foreach ($results as $row) {
                 $productJsonCache = GirofeedsCache::getByKey('PRODUCT_JSON_' . $row['id'], self::$cache_lifetime_products, true, (int) $this->context->language->id);
                 if ((int) $productJsonCache->id > 0 && !isset($_GET['rebuild_cache']) && $productJsonCache->cache_value != '' && !is_null(json_decode($productJsonCache->cache_value, true))) {
@@ -579,6 +595,23 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
 
                     if ($this->feedHasSpecificPricesQry()) {
                         $row['specific_price'] = $this->fetchMappedSpecificPrices($row['parent_id']);
+                    }
+
+                    if (Configuration::get('GIROFEEDS_ENABLE_ORDERS_COUNT') == '1') {
+                        $productIdForOrders = (int) $row['parent_id'];
+                        if (isset($batchOrdersCounts[$productIdForOrders])) {
+                            $row['orders_1d'] = $batchOrdersCounts[$productIdForOrders]['orders_1d'];
+                            $row['orders_7d'] = $batchOrdersCounts[$productIdForOrders]['orders_7d'];
+                            $row['orders_30d'] = $batchOrdersCounts[$productIdForOrders]['orders_30d'];
+                            $row['orders_90d'] = $batchOrdersCounts[$productIdForOrders]['orders_90d'];
+                            $row['orders_365d'] = $batchOrdersCounts[$productIdForOrders]['orders_365d'];
+                        } else {
+                            $row['orders_1d'] = 0;
+                            $row['orders_7d'] = 0;
+                            $row['orders_30d'] = 0;
+                            $row['orders_90d'] = 0;
+                            $row['orders_365d'] = 0;
+                        }
                     }
 
                     $ordersFields = $this->getConfiguredOrdersFields();
@@ -1465,24 +1498,27 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
 
         if ($orderStatusId <= 0) {
             return [
-                'orders_last_7days' => 0,
-                'orders_last_30days' => 0,
-                'orders_last_365days' => 0,
-                'orders_all_time' => 0,
+                'orders_1d' => 0,
+                'orders_7d' => 0,
+                'orders_30d' => 0,
+                'orders_90d' => 0,
+                'orders_365d' => 0,
             ];
         }
 
         $id_shop = (int) $this->context->shop->id;
-        $now = date('Y-m-d H:i:s');
-        $date_7days = date('Y-m-d H:i:s', strtotime('-7 days'));
-        $date_30days = date('Y-m-d H:i:s', strtotime('-30 days'));
-        $date_365days = date('Y-m-d H:i:s', strtotime('-365 days'));
+        $date_1d = date('Y-m-d H:i:s', strtotime('-1 day'));
+        $date_7d = date('Y-m-d H:i:s', strtotime('-7 days'));
+        $date_30d = date('Y-m-d H:i:s', strtotime('-30 days'));
+        $date_90d = date('Y-m-d H:i:s', strtotime('-90 days'));
+        $date_365d = date('Y-m-d H:i:s', strtotime('-365 days'));
 
         $sql = 'SELECT
-            SUM(CASE WHEN o.date_add >= "' . pSQL($date_7days) . '" THEN od.product_quantity ELSE 0 END) as orders_last_7days,
-            SUM(CASE WHEN o.date_add >= "' . pSQL($date_30days) . '" THEN od.product_quantity ELSE 0 END) as orders_last_30days,
-            SUM(CASE WHEN o.date_add >= "' . pSQL($date_365days) . '" THEN od.product_quantity ELSE 0 END) as orders_last_365days,
-            SUM(od.product_quantity) as orders_all_time
+            SUM(CASE WHEN o.date_add >= "' . pSQL($date_1d) . '" THEN od.product_quantity ELSE 0 END) as orders_1d,
+            SUM(CASE WHEN o.date_add >= "' . pSQL($date_7d) . '" THEN od.product_quantity ELSE 0 END) as orders_7d,
+            SUM(CASE WHEN o.date_add >= "' . pSQL($date_30d) . '" THEN od.product_quantity ELSE 0 END) as orders_30d,
+            SUM(CASE WHEN o.date_add >= "' . pSQL($date_90d) . '" THEN od.product_quantity ELSE 0 END) as orders_90d,
+            SUM(CASE WHEN o.date_add >= "' . pSQL($date_365d) . '" THEN od.product_quantity ELSE 0 END) as orders_365d
         FROM ' . _DB_PREFIX_ . 'order_detail od
         INNER JOIN ' . _DB_PREFIX_ . 'orders o ON (od.id_order = o.id_order)
         WHERE od.product_id = ' . (int) $id_product . '
@@ -1492,10 +1528,59 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
         $result = Db::getInstance(_PS_USE_SQL_SLAVE_)->getRow($sql);
 
         return [
-            'orders_last_7days' => (int) ($result['orders_last_7days'] ?? 0),
-            'orders_last_30days' => (int) ($result['orders_last_30days'] ?? 0),
-            'orders_last_365days' => (int) ($result['orders_last_365days'] ?? 0),
-            'orders_all_time' => (int) ($result['orders_all_time'] ?? 0),
+            'orders_1d' => (int) ($result['orders_1d'] ?? 0),
+            'orders_7d' => (int) ($result['orders_7d'] ?? 0),
+            'orders_30d' => (int) ($result['orders_30d'] ?? 0),
+            'orders_90d' => (int) ($result['orders_90d'] ?? 0),
+            'orders_365d' => (int) ($result['orders_365d'] ?? 0),
         ];
+    }
+
+    protected function fetchBatchProductOrdersCounts(array $productIds)
+    {
+        $orderStatusId = (int) Configuration::get('GIROFEEDS_ORDERS_COUNT_STATUS');
+
+        if ($orderStatusId <= 0 || empty($productIds)) {
+            return [];
+        }
+
+        $id_shop = (int) $this->context->shop->id;
+        $date_1d = date('Y-m-d H:i:s', strtotime('-1 day'));
+        $date_7d = date('Y-m-d H:i:s', strtotime('-7 days'));
+        $date_30d = date('Y-m-d H:i:s', strtotime('-30 days'));
+        $date_90d = date('Y-m-d H:i:s', strtotime('-90 days'));
+        $date_365d = date('Y-m-d H:i:s', strtotime('-365 days'));
+
+        $idsString = implode(',', array_map('intval', $productIds));
+
+        $sql = 'SELECT od.product_id,
+            SUM(CASE WHEN o.date_add >= "' . pSQL($date_1d) . '" THEN od.product_quantity ELSE 0 END) as orders_1d,
+            SUM(CASE WHEN o.date_add >= "' . pSQL($date_7d) . '" THEN od.product_quantity ELSE 0 END) as orders_7d,
+            SUM(CASE WHEN o.date_add >= "' . pSQL($date_30d) . '" THEN od.product_quantity ELSE 0 END) as orders_30d,
+            SUM(CASE WHEN o.date_add >= "' . pSQL($date_90d) . '" THEN od.product_quantity ELSE 0 END) as orders_90d,
+            SUM(CASE WHEN o.date_add >= "' . pSQL($date_365d) . '" THEN od.product_quantity ELSE 0 END) as orders_365d
+        FROM ' . _DB_PREFIX_ . 'order_detail od
+        INNER JOIN ' . _DB_PREFIX_ . 'orders o ON (od.id_order = o.id_order)
+        WHERE od.product_id IN (' . $idsString . ')
+        AND o.current_state = ' . (int) $orderStatusId . '
+        AND o.id_shop = ' . (int) $id_shop . '
+        GROUP BY od.product_id';
+
+        $results = Db::getInstance(_PS_USE_SQL_SLAVE_)->executeS($sql);
+
+        $counts = [];
+        if ($results) {
+            foreach ($results as $row) {
+                $counts[(int) $row['product_id']] = [
+                    'orders_1d' => (int) $row['orders_1d'],
+                    'orders_7d' => (int) $row['orders_7d'],
+                    'orders_30d' => (int) $row['orders_30d'],
+                    'orders_90d' => (int) $row['orders_90d'],
+                    'orders_365d' => (int) $row['orders_365d'],
+                ];
+            }
+        }
+
+        return $counts;
     }
 }
