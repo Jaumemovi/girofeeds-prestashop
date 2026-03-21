@@ -46,11 +46,8 @@ class Girofeeds extends Module
         require_once dirname(__FILE__) . '/classes/GirofeedsProductsQueue.php';
         require_once dirname(__FILE__) . '/classes/GirofeedsWebhook.php';
         require_once dirname(__FILE__) . '/classes/GirofeedsFeedfield.php';
-        require_once dirname(__FILE__) . '/classes/GirofeedsCarrier.php';
-        require_once dirname(__FILE__) . '/classes/GirofeedsOrdersAdditionalData.php';
         require_once dirname(__FILE__) . '/classes/GirofeedsProduct.php';
         require_once dirname(__FILE__) . '/classes/GirofeedsStockUpdate.php';
-        require_once dirname(__FILE__) . '/classes/GirofeedsOrderReturn.php';
     }
 
     /**
@@ -62,19 +59,13 @@ class Girofeeds extends Module
     {
         $this->enableApi();
         Configuration::updateValue('GIROFEEDS_SQL_OPTIMIZATION_MODE', 1);
-        Configuration::updateValue('GIROFEEDS_USE_GUEST_CHECKOUT', 1);
         Configuration::updateValue('GIROFEEDS_MULTIQUERY_MODE', 1);
         Configuration::updateValue('GIROFEEDS_DEFAULT_PAGE_SIZE', 100);
-        Configuration::updateValue('GIROFEEDS_COMMENT_AS_NOTE', 1);
-        Configuration::updateValue('GIROFEEDS_COMMENT_AS_CUSTOMER_THREAD', 1);
         Configuration::updateValue('GIROFEEDS_LOGLEVEL', 0);
         Configuration::updateValue('GIROFEEDS_DO_CRON_FROM_BACKEND', 1);
         Configuration::updateValue('GIROFEEDS_CRON_BACKEND_TIMEDIFF_MIN', 5);
-        Configuration::updateValue('GIROFEEDS_EXTEND_ORDER_VIEW_GRID', 1);
-        Configuration::updateValue('GIROFEEDS_EMPLOYEE_ID', 0);
         Configuration::updateValue('GIROFEEDS_USE_FEED_CACHE', 0);
         Configuration::updateValue('GIROFEEDS_DISABLE_VARIANTS', 0);
-        Configuration::updateValue('GIROFEEDS_REPLACE_NAME_CHARACTERS', 0);
         Configuration::updateValue('GIROFEEDS_SHOP_STOCK_SYNC', 0);
         Configuration::updateValue('GIROFEEDS_USE_PHONE_FOR_MOBILE', 0);
         Configuration::updateValue('GIROFEEDS_ENABLE_ORDERS_COUNT', 0);
@@ -97,15 +88,6 @@ class Girofeeds extends Module
     PRIMARY KEY  (`id_girofeeds_feedfields`)
 ) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8;');
 
-        Db::getInstance()->execute('CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'girofeeds_orders_additional_data` (
-    `id_girofeeds_orders_additional_data` int(11) NOT NULL AUTO_INCREMENT,
-    `id_order` int(11) NOT NULL,
-	`field_in_post` VARCHAR(255) NOT NULL,
-	`value_in_post` VARCHAR(255) NOT NULL,
-    `date_add` DATETIME,
-    PRIMARY KEY  (`id_girofeeds_orders_additional_data`)
-) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8;');
-
         Db::getInstance()->execute('CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'girofeeds_stock_update` (
     `id_girofeeds_stock_update` int(11) NOT NULL AUTO_INCREMENT,
     `id_product` int(11) NOT NULL,
@@ -113,15 +95,6 @@ class Girofeeds extends Module
     `working` int(11) NOT NULL,
     `date_add` DATETIME,
     PRIMARY KEY  (`id_girofeeds_stock_update`)
-) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8;');
-
-        Db::getInstance()->execute('CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'girofeeds_carriers` (
-    `id_girofeeds_carriers` int(11) NOT NULL AUTO_INCREMENT,
-    `entity_type` VARCHAR(15) NOT NULL,
-    `id_entity` int(11) NOT NULL,
-    `id_carrier` int(11) NOT NULL,
-    `date_add` DATETIME,
-    PRIMARY KEY  (`id_girofeeds_carriers`)
 ) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8;');
 
         Db::getInstance()->execute('CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'girofeeds_cache` (
@@ -149,25 +122,11 @@ class Girofeeds extends Module
         SELECT id_product, 0, NOW() FROM `' . _DB_PREFIX_ . 'product`
     ');
 
-        Db::getInstance()->execute('CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'girofeeds_order_return` (
-    `id_girofeeds_order_return` int(11) NOT NULL AUTO_INCREMENT,
-    `id_order` int(11) NOT NULL,
-    `return_code` VARCHAR(255),
-    `date_add` DATETIME,
-    PRIMARY KEY  (`id_girofeeds_order_return`)
-) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8;');
-
         return parent::install()
             && $this->registerHook('actionUpdateQuantity')
             && $this->registerHook('actionProductUpdate')
             && $this->registerHook('actionProductAdd')
             && $this->registerHook('actionProductAttributeUpdate')
-            && $this->registerHook('actionOrderGridDataModifier')
-            && $this->registerHook('actionOrderGridDefinitionModifier')
-            && $this->registerHook('actionAdminOrdersListingResultsModifier')
-            && $this->registerHook('actionAdminOrdersListingFieldsModifier')
-            && $this->registerHook('actionOrderGridQueryBuilderModifier')
-            && $this->registerHook('displayAdminOrder')
             && $this->registerHook('displayBackOfficeHeader');
     }
 
@@ -179,19 +138,13 @@ class Girofeeds extends Module
         Configuration::deleteByName('GIROFEEDS_FEEDMODE_ALTERNATIVE');
         Configuration::deleteByName('GIROFEEDS_SQL_OPTIMIZATION_MODE');
         Configuration::deleteByName('GIROFEEDS_FEEDMODE_SKIP_SHIPPING');
-        Configuration::deleteByName('GIROFEEDS_ORDER_WAREHOUSE');
         Configuration::deleteByName('GIROFEEDS_MULTIQUERY_MODE');
         Configuration::deleteByName('GIROFEEDS_DEFAULT_PAGE_SIZE');
-        Configuration::deleteByName('GIROFEEDS_COMMENT_AS_NOTE');
-        Configuration::deleteByName('GIROFEEDS_COMMENT_AS_CUSTOMER_THREAD');
         Configuration::deleteByName('GIROFEEDS_LOGLEVEL');
         Configuration::deleteByName('GIROFEEDS_DO_CRON_FROM_BACKEND');
         Configuration::deleteByName('GIROFEEDS_CRON_BACKEND_TIMEDIFF_MIN');
-        Configuration::deleteByName('GIROFEEDS_EXTEND_ORDER_VIEW_GRID');
-        Configuration::deleteByName('GIROFEEDS_EMPLOYEE_ID');
         Configuration::deleteByName('GIROFEEDS_USE_FEED_CACHE');
         Configuration::deleteByName('GIROFEEDS_DISABLE_VARIANTS');
-        Configuration::deleteByName('GIROFEEDS_REPLACE_NAME_CHARACTERS');
         Configuration::deleteByName('GIROFEEDS_SHOP_STOCK_SYNC');
         Configuration::deleteByName('GIROFEEDS_USE_PHONE_FOR_MOBILE');
         Configuration::deleteByName('GIROFEEDS_ENABLE_ORDERS_COUNT');
@@ -213,60 +166,12 @@ class Girofeeds extends Module
         }
         $this->context->smarty->assign('module_dir', $this->_path);
 
-        if (Tools::getValue('submitGirofeedsOrderSettingsModule') == '1') {
-            if ($osData = Tools::getValue('os')) {
-                if (isset($osData['shipped'])) {
-                    Configuration::updateValue('GIROFEEDS_ORDER_STATES_SHIPPED', join(',', $osData['shipped']));
-                } else {
-                    Configuration::updateValue('GIROFEEDS_ORDER_STATES_SHIPPED', join(',', []));
-                }
-                if (isset($osData['cancelled'])) {
-                    Configuration::updateValue('GIROFEEDS_ORDER_STATES_CANCELLED', join(',', $osData['cancelled']));
-                } else {
-                    Configuration::updateValue('GIROFEEDS_ORDER_STATES_CANCELLED', join(',', []));
-                }
-            }
-            if (Tools::getValue('os_import') != '') {
-                Configuration::updateValue('GIROFEEDS_ORDER_STATE_IMPORT', (int) Tools::getValue('os_import'));
-            }
-            if (Tools::getValue('carrier_import') != '') {
-                Configuration::updateValue('GIROFEEDS_ORDER_CARRIER_ID_IMPORT', (int) Tools::getValue('carrier_import'));
-            }
-            if (Tools::getValue('carrier_import_tax') != '') {
-                Configuration::updateValue('GIROFEEDS_ORDER_CARRIER_TAX', (float) str_replace(',', '.', Tools::getValue('carrier_import_tax')));
-            }
-            if (Tools::getValue('order_warehouse') != '') {
-                Configuration::updateValue('GIROFEEDS_ORDER_WAREHOUSE', (int) Tools::getValue('order_warehouse'));
-            }
-            if (Tools::getValue('comment_as_note') != '') {
-                Configuration::updateValue('GIROFEEDS_COMMENT_AS_NOTE', (int) Tools::getValue('comment_as_note'));
-            }
-            if (Tools::getValue('comment_as_customer_thread') != '') {
-                Configuration::updateValue('GIROFEEDS_COMMENT_AS_CUSTOMER_THREAD', (int) Tools::getValue('comment_as_customer_thread'));
-            }
-            if (Tools::getValue('enable_new_order_hook') != '') {
-                Configuration::updateValue('GIROFEEDS_ENABLE_NEW_ORDER_HOOK', (int) Tools::getValue('enable_new_order_hook'));
-            }
-            if (Tools::getValue('order_view_grid') != '') {
-                Configuration::updateValue('GIROFEEDS_EXTEND_ORDER_VIEW_GRID', (int) Tools::getValue('order_view_grid'));
-            }
-            if (Tools::getValue('enable_char_replacement') != '') {
-                Configuration::updateValue('GIROFEEDS_REPLACE_NAME_CHARACTERS', (int) Tools::getValue('enable_char_replacement'));
-            }
+        if (Tools::getValue('submitGirofeedsStockSettingsModule') == '1') {
             if (Tools::getValue('send_product_stock_interval') != '') {
                 Configuration::updateValue('GIROFEEDS_CRON_BACKEND_TIMEDIFF_MIN', (int) Tools::getValue('send_product_stock_interval'));
             }
-            if (Tools::getValue('employee_id') != '') {
-                Configuration::updateValue('GIROFEEDS_EMPLOYEE_ID', (int) Tools::getValue('employee_id'));
-            }
-            if (Tools::getValue('order_import_name_default') != '') {
-                Configuration::updateValue('GIROFEEDS_ORDER_IMPORT_NAME_DEFAULT', (string) Tools::getValue('order_import_name_default'));
-            }
             if (Tools::getValue('enable_shop_stock_sync') != '') {
                 Configuration::updateValue('GIROFEEDS_SHOP_STOCK_SYNC', (int) Tools::getValue('enable_shop_stock_sync'));
-            }
-            if (Tools::getValue('enable_phone_as_mobile') != '') {
-                Configuration::updateValue('GIROFEEDS_USE_PHONE_FOR_MOBILE', (int) Tools::getValue('enable_phone_as_mobile'));
             }
 
             $this->context->smarty->assign('success_message', $this->l('Settings updated'));
@@ -285,94 +190,18 @@ class Girofeeds extends Module
             $this->context->smarty->assign('success_message', $this->l('Assigned fields in feed updated'));
         }
 
-        if (Tools::getValue('submitGirofeedsCustomergroupAssignmentModule') == '1') {
-            if (Tools::getValue('cga')) {
-                if (is_array(Tools::getValue('cga'))) {
-                    Configuration::updateValue('GIROFEEDS_CUSTOMER_GROUP_ASSIGNMENTS', json_encode(Tools::getValue('cga')));
-                }
-            }
-            $this->context->smarty->assign('success_message', $this->l('Assigned customergroups updated'));
-        }
-
-        if (Tools::getValue('submitGirofeedsMarketplaceAssignmentModule') == '1') {
-            if (Tools::getValue('msa')) {
-                if (is_array(Tools::getValue('msa'))) {
-                    Configuration::updateValue('GIROFEEDS_MARKETPLACE_ASSIGNMENTS', json_encode(Tools::getValue('msa')));
-                }
-            }
-            $this->context->smarty->assign('success_message', $this->l('Assigned shipping status to marketplace updated'));
-        }
-
-        if (Tools::getValue('submitGirofeedsTaxRateModule') == '1') {
-            if (Tools::getValue('coa')) {
-                if (is_array(Tools::getValue('coa'))) {
-                    Configuration::updateValue('GIROFEEDS_TAXCOUNTRY_ASSIGNMENTS', json_encode(Tools::getValue('coa')));
-                }
-            }
-            $this->context->smarty->assign('success_message', $this->l('Assigned taxrates to country updated'));
-        }
-
-        if (Tools::getValue('submitGirofeedsCarrierAssignmentModule') == '1') {
-            if (Tools::getValue('csa')) {
-                if (is_array(Tools::getValue('csa'))) {
-                    foreach (Tools::getValue('csa') as $csaKey => $carrierAssignment) {
-                        if ($csaKey < 0) {
-                            $csaObject = new GirofeedsCarrier();
-                        } else {
-                            $csaObject = new GirofeedsCarrier((int) $csaKey);
-                        }
-                        if ($carrierAssignment['id_entity'] == 0 || trim($carrierAssignment['id_entity']) == '') {
-                            if ($csaObject->id) {
-                                $csaObject->delete();
-                            }
-                        } else {
-                            $csaObject->entity_type = $carrierAssignment['entity_type'];
-                            $csaObject->id_entity = (int) $carrierAssignment['id_entity'];
-                            $csaObject->id_carrier = (int) $carrierAssignment['id_carrier'];
-                            $csaObject->save();
-                        }
-                    }
-                }
-            }
-        }
-
         $webservice = new WebserviceKey((int) Configuration::get('GIROFEEDS_API_ID'));
 
         $this->context->smarty->assign('feed_url', $this->context->link->getModuleLink('girofeeds', 'feed', ['key' => $webservice->key, 'limit' => '0,100']));
         $this->context->smarty->assign('auto_connect_feed_url', $this->context->link->getModuleLink('girofeeds', 'feed'));
         $this->context->smarty->assign('webhook_url', $this->context->link->getModuleLink('girofeeds', 'webhooks'));
-        $this->context->smarty->assign('order_api_url', $this->context->link->getModuleLink('girofeeds', 'order'));
-        $this->context->smarty->assign('order_api_fetch_url', $this->context->link->getModuleLink('girofeeds', 'order', ['order' => 'XX_ORDER_ID_XX']));
         $this->context->smarty->assign('product_api_url', $this->context->link->getModuleLink('girofeeds', 'product', ['key' => $webservice->key, 'id_product' => 'XX_PRODUCT_ID_XX']));
         $this->context->smarty->assign('product_cache_cron_url', $this->context->link->getModuleLink('girofeeds', 'cron', ['buildProductsJson' => '1']));
         $this->context->smarty->assign('girofeeds_key', $webservice->key);
         $this->context->smarty->assign('lang_id', $this->context->language->id);
         $this->context->smarty->assign('form_url', $this->context->link->getAdminLink('AdminModules', false) . '&configure=' . $this->name . '&tab_module=' . $this->tab . '&module_name=' . $this->name . '&token=' . Tools::getAdminTokenLite('AdminModules'));
-        $this->context->smarty->assign('order_states', OrderState::getOrderStates((int) Configuration::get('PS_LANG_DEFAULT')));
-        $this->context->smarty->assign('order_states_shipped', $this->getOrderStates('shipped'));
-        $this->context->smarty->assign('order_states_cancelled', $this->getOrderStates('cancelled'));
-        $this->context->smarty->assign('order_state_import', Configuration::get('GIROFEEDS_ORDER_STATE_IMPORT'));
-        $this->context->smarty->assign('order_carrier_import', Configuration::get('GIROFEEDS_ORDER_CARRIER_ID_IMPORT'));
-        $this->context->smarty->assign('carrier_import_tax', (float) Configuration::get('GIROFEEDS_ORDER_CARRIER_TAX'));
-        $this->context->smarty->assign('order_warehouse', Configuration::get('GIROFEEDS_ORDER_WAREHOUSE'));
-        $this->context->smarty->assign('employee_id', Configuration::get('GIROFEEDS_EMPLOYEE_ID'));
-        $this->context->smarty->assign('order_import_name_default', Configuration::get('GIROFEEDS_ORDER_IMPORT_NAME_DEFAULT'));
-        $this->context->smarty->assign('enable_shop_stock_sync', Configuration::get('GIROFEEDS_SHOP_STOCK_SYNC'));
-        $this->context->smarty->assign('employees', Employee::getEmployees());
         $this->context->smarty->assign('feedfields_available', GirofeedsFeedfield::getAvailableFieldsFiltered());
         $this->context->smarty->assign('feedfields_assigned', GirofeedsFeedfield::getAllFeedfields());
-        $this->context->smarty->assign('shop_countries', Country::getCountries((int) Configuration::get('PS_LANG_DEFAULT'), true));
-        $this->context->smarty->assign('carriers', Carrier::getCarriers((int) Configuration::get('PS_LANG_DEFAULT'), false, false, false, null, Carrier::ALL_CARRIERS));
-        $this->context->smarty->assign('customer_group_assignments', self::getCustomerGroupAssignments());
-        $this->context->smarty->assign('marketplace_assignments', self::getMarketplaceAssignments());
-        $this->context->smarty->assign('tax_country_assignments', self::getTaxCountryAssignments());
-        $this->context->smarty->assign('carrier_assignments', self::getCarrierAssignments());
-        $this->context->smarty->assign('customer_groups', Group::getGroups($this->context->language->id));
-        if (version_compare(_PS_VERSION_, '9.0.0', '<') && class_exists('Warehouse')) {
-            $this->context->smarty->assign('warehouses', Warehouse::getWarehouses());
-        } else {
-            $this->context->smarty->assign('warehouses', []);
-        }
 
         $date_last_modification = filemtime($this->local_path . 'logo.png');
         $key_theorical = Tools::substr('GIROFEEDS' . md5((string) $date_last_modification), 0, 32);
@@ -578,25 +407,6 @@ class Girofeeds extends Module
                     ],
                     [
                         'type' => 'switch',
-                        'desc' => $this->l('If inactive, all incoming order will have created a "real" customer account.'),
-                        'name' => 'GIROFEEDS_USE_GUEST_CHECKOUT',
-                        'label' => $this->l('Use Guest checkout'),
-                        'is_bool' => true,
-                        'values' => [
-                            [
-                                'id' => 'uguest_active_on',
-                                'value' => true,
-                                'label' => $this->l('Enabled'),
-                            ],
-                            [
-                                'id' => 'uguest_active_off',
-                                'value' => false,
-                                'label' => $this->l('Disabled'),
-                            ],
-                        ],
-                    ],
-                    [
-                        'type' => 'switch',
                         'desc' => $this->l('If inactive, all feed data will be created on the fly.'),
                         'name' => 'GIROFEEDS_USE_FEED_CACHE',
                         'label' => $this->l('Use Feed-Cache'),
@@ -667,7 +477,6 @@ class Girofeeds extends Module
             'GIROFEEDS_DISABLE_VARIANTS' => Tools::getValue('GIROFEEDS_DISABLE_VARIANTS', Configuration::get('GIROFEEDS_DISABLE_VARIANTS') == '1' ? 1 : 0),
             'GIROFEEDS_CUSTOMER_ID' => Tools::getValue('GIROFEEDS_CUSTOMER_ID', Configuration::get('GIROFEEDS_CUSTOMER_ID')),
             'GIROFEEDS_DEFAULT_PAGE_SIZE' => Tools::getValue('GIROFEEDS_DEFAULT_PAGE_SIZE', Configuration::get('GIROFEEDS_DEFAULT_PAGE_SIZE')),
-            'GIROFEEDS_USE_GUEST_CHECKOUT' => Tools::getValue('GIROFEEDS_USE_GUEST_CHECKOUT', Configuration::get('GIROFEEDS_USE_GUEST_CHECKOUT') == '1' ? 1 : 0),
             'GIROFEEDS_USE_FEED_CACHE' => Tools::getValue('GIROFEEDS_USE_FEED_CACHE', Configuration::get('GIROFEEDS_USE_FEED_CACHE') == '1' ? 1 : 0),
             'GIROFEEDS_ENABLE_ORDERS_COUNT' => Tools::getValue('GIROFEEDS_ENABLE_ORDERS_COUNT', Configuration::get('GIROFEEDS_ENABLE_ORDERS_COUNT') == '1' ? 1 : 0),
             'GIROFEEDS_ORDERS_COUNT_STATUS' => Tools::getValue('GIROFEEDS_ORDERS_COUNT_STATUS', Configuration::get('GIROFEEDS_ORDERS_COUNT_STATUS')),
@@ -979,338 +788,11 @@ class Girofeeds extends Module
     }
 
     /**
-     * @param $type
-     *
-     * @return false|string[]
-     */
-    public function getOrderStates($type)
-    {
-        $states = Configuration::get('GIROFEEDS_ORDER_STATES_' . Tools::strtoupper($type));
-
-        return explode(',', $states);
-    }
-
-    /**
-     * @param $type
-     *
-     * @return false|string[]
-     */
-    public static function getGirofeedsOrderStates($type)
-    {
-        switch ($type) {
-            case 'SHIPPING_SHIPPED':
-                $states = Configuration::get('GIROFEEDS_ORDER_STATES_SHIPPED');
-
-                return explode(',', $states);
-            case 'SHIPPING_CANCELLED':
-                $states = Configuration::get('GIROFEEDS_ORDER_STATES_CANCELLED');
-
-                return explode(',', $states);
-        }
-
-        return false;
-    }
-
-    /**
      * @return bool|string
      */
     public static function fetchPhpInput()
     {
         return Tools::file_get_contents('php://input');
-    }
-
-    /**
-     * @return bool
-     */
-    public static function isPrestaShop177OrHigherStatic()
-    {
-        return version_compare(_PS_VERSION_, '1.7.7', '>=');
-    }
-
-    /**
-     * @param $params
-     *
-     * @return bool|string|void
-     *
-     * @throws PrestaShopDatabaseException
-     */
-    public function hookDisplayAdminOrder($params)
-    {
-        if (!isset($params['id_order'])) {
-            return;
-        }
-        $this->context->smarty->assign('isHigher176', self::isPrestaShop177OrHigherStatic());
-        if (Tools::getValue('girofeeds_return_code')) {
-            GirofeedsOrderReturn::addOrUpdateToOrder(
-                (int) $params['id_order'],
-                Tools::getValue('girofeeds_return_code')
-            );
-        }
-        $additionalData = GirofeedsOrdersAdditionalData::getByOrderId($params['id_order']);
-        if ($additionalData) {
-            $order_return_code = GirofeedsOrderReturn::getByOrderId((int) $params['id_order']);
-            $this->context->smarty->assign('orderReturnCode', $order_return_code ? $order_return_code->return_code : false);
-            $this->context->smarty->assign('additionalData', $additionalData);
-
-            return $this->display($this->this_file, 'views/templates/admin/hookAdminOrder.tpl');
-        }
-    }
-
-    /**
-     * Hook allows to modify Order grid data before 1.7.7.0
-     *
-     * @param array $params
-     */
-    public function hookActionAdminOrdersListingFieldsModifier(array $params)
-    {
-        if (Configuration::get('GIROFEEDS_EXTEND_ORDER_VIEW_GRID') == 1) {
-            if (isset($params['select'])) {
-                $params['join'] .= ' LEFT JOIN `' . _DB_PREFIX_ . 'girofeeds_orders_additional_data` AS cm ON (cm.`id_order` = a.`id_order` AND cm.`field_in_post` = \'marketplace_order_id\') ';
-                $params['select'] .= ', cm.`value_in_post` as girofeeds_comment ';
-            }
-            $params['fields'] += [
-                'value_in_post' => [
-                    'title' => 'Girofeeds Info',
-                    'search' => true,
-                ],
-            ];
-        }
-    }
-
-    /**
-     * Hook allows to modify Order grid data before 1.7.7.0
-     *
-     * @param array $params
-     */
-    public function hookActionAdminOrdersListingResultsModifier(array $params)
-    {
-        if (Configuration::get('GIROFEEDS_EXTEND_ORDER_VIEW_GRID') == 1) {
-            foreach ($params['list'] as $key => $fields) {
-                $girofeeds_comment = '';
-                if (!isset($fields['value_in_post']) || empty($fields['value_in_post'])) {
-                    $dbResults = Db::getInstance()->query(
-                        'SELECT
-                        cm.`value_in_post` as `message` FROM `' . _DB_PREFIX_ . 'girofeeds_orders_additional_data` cm
-                     WHERE cm.id_order = \'' . (int) $fields['id_order'] . '\'
-                       AND cm.`field_in_post` = \'marketplace_order_id\'
-                    '
-                    );
-                    if ($dbResults) {
-                        foreach ($dbResults as $dbResult) {
-                            if ($girofeeds_comment != '') {
-                                $girofeeds_comment = $girofeeds_comment . "\n" . $dbResult['message'];
-                            } else {
-                                $girofeeds_comment = $dbResult['message'];
-                            }
-                        }
-                    }
-                    if ($girofeeds_comment != '') {
-                        $params['list'][$key]['value_in_post'] = $girofeeds_comment;
-                    }
-                }
-            }
-        }
-    }
-
-    /**
-     * @param array $params
-     */
-    public function hookActionOrderGridDefinitionModifier(array $params)
-    {
-        if (Configuration::get('GIROFEEDS_EXTEND_ORDER_VIEW_GRID') == 1) {
-            /** @var PrestaShop\PrestaShop\Core\Grid\Definition\GridDefinitionInterface $definition */
-            $definition = $params['definition'];
-
-            $translator = $this->getTranslator();
-
-            $definition
-                ->getColumns()
-                ->addAfter(
-                    'osname',
-                    (new PrestaShop\PrestaShop\Core\Grid\Column\Type\DataColumn('girofeeds'))
-                        ->setName($translator->trans('Girofeeds Info', [], 'Modules.Girofeeds'))
-                        ->setOptions([
-                            'field' => 'girofeeds_comment',
-                        ])
-                )
-            ;
-
-            $definition->getFilters()->add(
-                (new PrestaShop\PrestaShop\Core\Grid\Filter\Filter('girofeeds', Symfony\Component\Form\Extension\Core\Type\TextType::class))
-                    ->setAssociatedColumn('girofeeds')
-                    ->setTypeOptions([
-                        'required' => false,
-                    ])
-            );
-        }
-    }
-
-    /**
-     * @param array $params
-     *
-     * @return void
-     *
-     * @throws PrestaShopDatabaseException
-     */
-    public function hookActionOrderGridQueryBuilderModifier(array $params)
-    {
-        if (empty($params['search_query_builder']) || empty($params['search_criteria']) || Configuration::get('GIROFEEDS_EXTEND_ORDER_VIEW_GRID') != 1) {
-            return;
-        }
-
-        $searchQueryBuilder = $params['search_query_builder'];
-
-        $searchCriteria = $params['search_criteria'];
-
-        $searchQueryBuilder->addSelect('cm.`value_in_post` as `girofeeds_comment`');
-        $searchQueryBuilder->leftJoin(
-            'o',
-            '`' . _DB_PREFIX_ . 'girofeeds_orders_additional_data`',
-            'cm',
-            'cm.`id_order` = o.`id_order` AND cm.`field_in_post` = \'marketplace_order_id\' '
-        );
-
-        if ('girofeeds' === $searchCriteria->getOrderBy()) {
-            $searchQueryBuilder->orderBy('cm.`value_in_post`', $searchCriteria->getOrderWay());
-        }
-
-        foreach ($searchCriteria->getFilters() as $filterName => $filterValue) {
-            if ('girofeeds' === $filterName) {
-                $searchQueryBuilder->andWhere('cm.`value_in_post` LIKE :girofeeds');
-                $searchQueryBuilder->setParameter('girofeeds', $filterValue);
-            }
-        }
-    }
-
-    /**
-     * @param array $params
-     *
-     * @throws PrestaShopDatabaseException
-     */
-    public function hookActionOrderGridDataModifier(array $params)
-    {
-        if (Configuration::get('GIROFEEDS_EXTEND_ORDER_VIEW_GRID') == 1) {
-            /** @var PrestaShop\PrestaShop\Core\Grid\Data\GridData $data */
-            $data = $params['data'];
-            $records = $data->getRecords()->all();
-            foreach ($records as &$record) {
-                $dbResults = Db::getInstance()->query(
-                    'SELECT
-                        cm.`value_in_post` as `message` FROM `' . _DB_PREFIX_ . 'girofeeds_orders_additional_data` cm
-                     WHERE cm.id_order = \'' . (int) $record['id_order'] . '\'
-                       AND cm.`field_in_post` = \'marketplace_order_id\'
-                    '
-                );
-                if ($dbResults) {
-                    foreach ($dbResults as $dbResult) {
-                        if (isset($girofeeds_comment) && $girofeeds_comment != '') {
-                            $girofeeds_comment = $girofeeds_comment . "\n" . $dbResult['message'];
-                        } else {
-                            $girofeeds_comment = $dbResult['message'];
-                        }
-                    }
-                }
-                if (isset($girofeeds_comment)) {
-                    $record['girofeeds_comment'] = $girofeeds_comment;
-                }
-                unset($girofeeds_comment);
-            }
-            $params['data'] = new PrestaShop\PrestaShop\Core\Grid\Data\GridData(
-                new PrestaShop\PrestaShop\Core\Grid\Record\RecordCollection($records),
-                $data->getRecordsTotal(),
-                $data->getQuery()
-            );
-        }
-    }
-
-    /**
-     * @return array[]|mixed
-     */
-    public static function getCustomerGroupAssignments()
-    {
-        $data = Configuration::get('GIROFEEDS_CUSTOMER_GROUP_ASSIGNMENTS');
-        $json = json_decode($data, true);
-        $struct = [
-            's' => '',
-            'g' => 0,
-        ];
-        if ($json == null) {
-            $json = [
-                0 => $struct,
-                1 => $struct,
-                2 => $struct,
-                3 => $struct,
-                4 => $struct,
-                5 => $struct,
-            ];
-        }
-
-        return $json;
-    }
-
-    /**
-     * @return array[]|mixed
-     */
-    public static function getMarketplaceAssignments()
-    {
-        $data = Configuration::get('GIROFEEDS_MARKETPLACE_ASSIGNMENTS');
-        $json = json_decode($data, true);
-        $struct = [
-            's' => '',
-            'g' => 0,
-        ];
-        if ($json == null) {
-            $json = [
-                0 => $struct,
-                1 => $struct,
-                2 => $struct,
-                3 => $struct,
-                4 => $struct,
-                5 => $struct,
-            ];
-        }
-
-        return $json;
-    }
-
-    public static function getTaxCountryAssignments()
-    {
-        $data = Configuration::get('GIROFEEDS_TAXCOUNTRY_ASSIGNMENTS');
-        $json = json_decode($data, true);
-        $struct = [
-            'country_id' => '',
-            'tax_rate' => '',
-        ];
-        if ($json == null) {
-            for ($x = 0; $x < 30; ++$x) {
-                $json[] = $struct;
-            }
-        } else {
-            if (sizeof($json) < 30) {
-                $neededFields = (30 - sizeof($json));
-                for ($x = 0; $x < $neededFields; ++$x) {
-                    $json[] = $struct;
-                }
-            }
-        }
-
-        return $json;
-    }
-
-    public static function getCarrierAssignments()
-    {
-        $carrierAssignments = GirofeedsCarrier::getAllAssignements();
-        for ($x = 1; $x < 6; ++$x) {
-            if (!is_array($carrierAssignments)) {
-                $carrierAssignments = [];
-            }
-            $carrierAssignments[] = ['id' => ($x * -1),
-                'entity_type' => '',
-                'id_entity' => '',
-                'id_carrier' => '',
-            ];
-        }
-        return $carrierAssignments;
     }
 
     /**
