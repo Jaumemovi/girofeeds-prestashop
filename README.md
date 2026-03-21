@@ -7,6 +7,7 @@
 In the PrestaShop module configuration, copy the API key and endpoint URLs (Feed-URL, Webhook-URL & Order-API-URL, Product-Info-URL) and configure them in Girofeeds.
 
 ![Step 2 - API key and endpoints](03-prestashop-api-key.jpg)
+![Step 2b - Girofeeds provider config (API key field)](05-provider-config-apikey.jpg)
 
 ### 3) Product synchronization from Girofeeds
 Run synchronization from Girofeeds Catalog to send updated data to PrestaShop.
