@@ -77,10 +77,11 @@ class GirofeedsFeedfield extends ObjectModel
             'reduction_type',
         ],
         'orders' => [
-            'orders_last_7days',
-            'orders_last_30days',
-            'orders_last_365days',
-            'orders_all_time',
+            'orders_1d',
+            'orders_7d',
+            'orders_30d',
+            'orders_90d',
+            'orders_365d',
         ],
     ];
 
@@ -146,10 +147,11 @@ class GirofeedsFeedfield extends ObjectModel
             $fields[$tablename] = [];
             if ($tablename === 'orders') {
                 $fields[$tablename] = [
-                    'orders_last_7days',
-                    'orders_last_30days',
-                    'orders_last_365days',
-                    'orders_all_time',
+                    'orders_1d',
+                    'orders_7d',
+                    'orders_30d',
+                    'orders_90d',
+                    'orders_365d',
                 ];
             } else {
                 $sql = 'SHOW COLUMNS FROM `' . _DB_PREFIX_ . pSQL($tablename) . '`';

@@ -67,6 +67,8 @@ class Girofeeds extends Module
         Configuration::updateValue('GIROFEEDS_USE_FEED_CACHE', 0);
         Configuration::updateValue('GIROFEEDS_DISABLE_VARIANTS', 0);
         Configuration::updateValue('GIROFEEDS_SHOP_STOCK_SYNC', 0);
+        Configuration::updateValue('GIROFEEDS_USE_PHONE_FOR_MOBILE', 0);
+        Configuration::updateValue('GIROFEEDS_ENABLE_ORDERS_COUNT', 0);
 
         Db::getInstance()->execute('CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'girofeeds_webhooks` (
     `id_girofeeds_webhook` int(11) NOT NULL AUTO_INCREMENT,
@@ -144,6 +146,8 @@ class Girofeeds extends Module
         Configuration::deleteByName('GIROFEEDS_USE_FEED_CACHE');
         Configuration::deleteByName('GIROFEEDS_DISABLE_VARIANTS');
         Configuration::deleteByName('GIROFEEDS_SHOP_STOCK_SYNC');
+        Configuration::deleteByName('GIROFEEDS_USE_PHONE_FOR_MOBILE');
+        Configuration::deleteByName('GIROFEEDS_ENABLE_ORDERS_COUNT');
 
         return parent::uninstall();
     }
@@ -421,8 +425,27 @@ class Girofeeds extends Module
                         ],
                     ],
                     [
+                        'type' => 'switch',
+                        'desc' => $this->l('Include order count fields (orders_1d, orders_7d, orders_30d, orders_90d, orders_365d) in the product feed.'),
+                        'name' => 'GIROFEEDS_ENABLE_ORDERS_COUNT',
+                        'label' => $this->l('Enable order count in feed'),
+                        'is_bool' => true,
+                        'values' => [
+                            [
+                                'id' => 'orders_count_on',
+                                'value' => true,
+                                'label' => $this->l('Enabled'),
+                            ],
+                            [
+                                'id' => 'orders_count_off',
+                                'value' => false,
+                                'label' => $this->l('Disabled'),
+                            ],
+                        ],
+                    ],
+                    [
                         'type' => 'select',
-                        'desc' => $this->l('Select order status to count orders per product in feed export (orders_last_7days, orders_last_30days, etc.)'),
+                        'desc' => $this->l('Select order status to count orders per product in feed export (orders_1d, orders_7d, orders_30d, orders_90d, orders_365d).'),
                         'name' => 'GIROFEEDS_ORDERS_COUNT_STATUS',
                         'label' => $this->l('Order status for counting orders'),
                         'options' => [
@@ -455,6 +478,7 @@ class Girofeeds extends Module
             'GIROFEEDS_CUSTOMER_ID' => Tools::getValue('GIROFEEDS_CUSTOMER_ID', Configuration::get('GIROFEEDS_CUSTOMER_ID')),
             'GIROFEEDS_DEFAULT_PAGE_SIZE' => Tools::getValue('GIROFEEDS_DEFAULT_PAGE_SIZE', Configuration::get('GIROFEEDS_DEFAULT_PAGE_SIZE')),
             'GIROFEEDS_USE_FEED_CACHE' => Tools::getValue('GIROFEEDS_USE_FEED_CACHE', Configuration::get('GIROFEEDS_USE_FEED_CACHE') == '1' ? 1 : 0),
+            'GIROFEEDS_ENABLE_ORDERS_COUNT' => Tools::getValue('GIROFEEDS_ENABLE_ORDERS_COUNT', Configuration::get('GIROFEEDS_ENABLE_ORDERS_COUNT') == '1' ? 1 : 0),
             'GIROFEEDS_ORDERS_COUNT_STATUS' => Tools::getValue('GIROFEEDS_ORDERS_COUNT_STATUS', Configuration::get('GIROFEEDS_ORDERS_COUNT_STATUS')),
         ];
     }
