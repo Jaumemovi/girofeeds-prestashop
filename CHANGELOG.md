@@ -1,5 +1,11 @@
 # Changelog
 
+### 3.3.16
+- **NEW: `/attributes` endpoint** for product field definitions — returns metadata about all product fields, dynamic features with possible values, variant attribute groups, manufacturers, suppliers, categories, and tax rules
+- **Improved order count fields in feed**: renamed intervals to `orders_1d`, `orders_7d`, `orders_30d`, `orders_90d`, `orders_365d` with efficient batch SQL query (single query per page)
+- **Removed legacy order import functionality** inherited from Channable — removed order controller, admin hooks/grid extensions, carrier/customer group/marketplace/tax assignment panels, and 18 order-specific configuration keys
+- **Added Spanish locale descriptor** (`config_es.xml`)
+
 ### 3.3.15
 - **Skip duplicate image upload**: compare MD5 hash of new image with current cover to avoid re-uploading identical images
 - **Fixed image upload duplicate cover error**: reset all existing covers via direct SQL before `Image::add()` to prevent `id_product_cover` unique constraint violation
