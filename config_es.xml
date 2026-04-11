@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<module>
+    <name>girofeeds</name>
+    <displayName><![CDATA[Girofeeds]]></displayName>
+    <version><![CDATA[3.3.15]]></version>
+    <description><![CDATA[Girofeeds feed management module for PrestaShop]]></description>
+    <author><![CDATA[Moviendote]]></author>
+    <tab><![CDATA[market_place]]></tab>
+	<confirmUninstall><![CDATA[Are you sure to uninstall this module?]]></confirmUninstall>
+    <is_configurable>1</is_configurable>
+    <need_instance>1</need_instance>
+</module>
