@@ -127,6 +127,194 @@ class GirofeedsAttributesModuleFrontController extends ModuleFrontController
     {
         $fields = [];
 
+        // --- Feed-generated fields (computed by feed, not direct DB columns) ---
+        $fields[] = $this->buildField('id', [
+            'type' => 'string',
+            'category' => 'identifiers',
+            'isReadOnly' => true,
+            'description' => 'Product ID (or id_product_attribute compound) as returned by the feed'
+        ]);
+        $fields[] = $this->buildField('parent_id', [
+            'type' => 'number',
+            'category' => 'identifiers',
+            'isReadOnly' => true,
+            'description' => 'Parent product ID (id_product)'
+        ]);
+        $fields[] = $this->buildField('gtin', [
+            'category' => 'identifiers',
+            'isReadOnly' => true,
+            'description' => 'GTIN code (computed from EAN13 or reference)'
+        ]);
+        $fields[] = $this->buildField('title', [
+            'table' => 'product_lang',
+            'isMultilingual' => true,
+            'category' => 'content',
+            'description' => 'Product title (alias of name from feed)'
+        ]);
+        $fields[] = $this->buildField('short_description', [
+            'table' => 'virtual',
+            'category' => 'content',
+            'isReadOnly' => true,
+            'description' => 'Short product description (plain text, stripped from HTML)'
+        ]);
+        $fields[] = $this->buildField('link', [
+            'table' => 'virtual',
+            'category' => 'content',
+            'isReadOnly' => true,
+            'description' => 'Product URL in the store'
+        ]);
+        $fields[] = $this->buildField('product_category', [
+            'table' => 'virtual',
+            'category' => 'relations',
+            'isReadOnly' => true,
+            'description' => 'Default category tree path (e.g. "Home > Clothes > Men")'
+        ]);
+        $fields[] = $this->buildField('product_supplier_reference', [
+            'table' => 'virtual',
+            'category' => 'identifiers',
+            'isReadOnly' => true,
+            'description' => 'Supplier reference for this product'
+        ]);
+        $fields[] = $this->buildField('image_link', [
+            'table' => 'virtual',
+            'category' => 'media',
+            'isReadOnly' => true,
+            'description' => 'Main product image URL'
+        ]);
+        $fields[] = $this->buildField('additional_images', [
+            'type' => 'array',
+            'table' => 'virtual',
+            'isArray' => true,
+            'category' => 'media',
+            'isReadOnly' => true,
+            'description' => 'Additional product image URLs'
+        ]);
+        $fields[] = $this->buildField('price_incl_vat', [
+            'type' => 'number',
+            'table' => 'virtual',
+            'category' => 'pricing',
+            'isReadOnly' => true,
+            'description' => 'Product price including VAT'
+        ]);
+        $fields[] = $this->buildField('sale_price', [
+            'type' => 'number',
+            'table' => 'virtual',
+            'category' => 'pricing',
+            'isReadOnly' => true,
+            'description' => 'Sale price (tax excluded)'
+        ]);
+        $fields[] = $this->buildField('sale_price_incl_vat', [
+            'type' => 'number',
+            'table' => 'virtual',
+            'category' => 'pricing',
+            'isReadOnly' => true,
+            'description' => 'Sale price including VAT'
+        ]);
+        $fields[] = $this->buildField('tax_rate', [
+            'type' => 'number',
+            'table' => 'virtual',
+            'category' => 'pricing',
+            'isReadOnly' => true,
+            'description' => 'Tax rate percentage'
+        ]);
+        $fields[] = $this->buildField('currency', [
+            'table' => 'virtual',
+            'category' => 'pricing',
+            'isReadOnly' => true,
+            'description' => 'Product currency code'
+        ]);
+        $fields[] = $this->buildField('visible', [
+            'type' => 'boolean',
+            'table' => 'virtual',
+            'category' => 'basic',
+            'isReadOnly' => true,
+            'description' => 'Whether the product is visible (alias of active from feed)'
+        ]);
+        $fields[] = $this->buildField('package_weight', [
+            'type' => 'number',
+            'table' => 'virtual',
+            'category' => 'shipping',
+            'isReadOnly' => true,
+            'description' => 'Product weight (alias of weight from feed)'
+        ]);
+        $fields[] = $this->buildField('package_height', [
+            'type' => 'number',
+            'table' => 'virtual',
+            'category' => 'shipping',
+            'isReadOnly' => true,
+            'description' => 'Product height (alias of height from feed)'
+        ]);
+        $fields[] = $this->buildField('package_width', [
+            'type' => 'number',
+            'table' => 'virtual',
+            'category' => 'shipping',
+            'isReadOnly' => true,
+            'description' => 'Product width (alias of width from feed)'
+        ]);
+        $fields[] = $this->buildField('package_depth', [
+            'type' => 'number',
+            'table' => 'virtual',
+            'category' => 'shipping',
+            'isReadOnly' => true,
+            'description' => 'Product depth (alias of depth from feed)'
+        ]);
+        $fields[] = $this->buildField('shipping', [
+            'type' => 'object',
+            'table' => 'virtual',
+            'category' => 'shipping',
+            'isReadOnly' => true,
+            'description' => 'Shipping info (country and delivery price)'
+        ]);
+        $fields[] = $this->buildField('delivery_period', [
+            'table' => 'virtual',
+            'category' => 'shipping',
+            'isReadOnly' => true,
+            'description' => 'Estimated delivery time text'
+        ]);
+        $fields[] = $this->buildField('orders_1d', [
+            'type' => 'number',
+            'table' => 'virtual',
+            'category' => 'analytics',
+            'isReadOnly' => true,
+            'description' => 'Number of orders in the last 1 day'
+        ]);
+        $fields[] = $this->buildField('orders_7d', [
+            'type' => 'number',
+            'table' => 'virtual',
+            'category' => 'analytics',
+            'isReadOnly' => true,
+            'description' => 'Number of orders in the last 7 days'
+        ]);
+        $fields[] = $this->buildField('orders_30d', [
+            'type' => 'number',
+            'table' => 'virtual',
+            'category' => 'analytics',
+            'isReadOnly' => true,
+            'description' => 'Number of orders in the last 30 days'
+        ]);
+        $fields[] = $this->buildField('orders_90d', [
+            'type' => 'number',
+            'table' => 'virtual',
+            'category' => 'analytics',
+            'isReadOnly' => true,
+            'description' => 'Number of orders in the last 90 days'
+        ]);
+        $fields[] = $this->buildField('orders_365d', [
+            'type' => 'number',
+            'table' => 'virtual',
+            'category' => 'analytics',
+            'isReadOnly' => true,
+            'description' => 'Number of orders in the last 365 days'
+        ]);
+        $fields[] = $this->buildField('attachments', [
+            'type' => 'array',
+            'table' => 'virtual',
+            'isArray' => true,
+            'category' => 'media',
+            'isReadOnly' => true,
+            'description' => 'Product attachments (name, description, link)'
+        ]);
+
         // --- Basic fields ---
         $fields[] = $this->buildField('condition', [
             'category' => 'basic',
@@ -449,11 +637,6 @@ class GirofeedsAttributesModuleFrontController extends ModuleFrontController
             'description' => 'Product image URL. Downloads and sets as main image.'
         ]);
         $fields[] = $this->buildField('image_url', [
-            'table' => 'virtual',
-            'category' => 'media',
-            'description' => 'Alias for image. Product image URL.'
-        ]);
-        $fields[] = $this->buildField('image_link', [
             'table' => 'virtual',
             'category' => 'media',
             'description' => 'Alias for image. Product image URL.'
