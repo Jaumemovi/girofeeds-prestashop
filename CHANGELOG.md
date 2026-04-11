@@ -1,5 +1,9 @@
 # Changelog
 
+### 3.3.17
+- **Added all feed-generated fields to `/attributes` endpoint**: `id`, `parent_id`, `gtin`, `title`, `short_description`, `link`, `product_category`, `product_supplier_reference`, `image_link`, `additional_images`, `price_incl_vat`, `sale_price`, `sale_price_incl_vat`, `tax_rate`, `currency`, `visible`, `package_weight/height/width/depth`, `shipping`, `delivery_period`, `orders_1d/7d/30d/90d/365d`, `attachments`
+- These fields are computed by the feed (not direct DB columns) and were previously missing from attribute definitions, making them unavailable for filters, actions, and ecommerce sync in Girofeeds SaaS
+
 ### 3.3.16
 - **NEW: `/attributes` endpoint** for product field definitions — returns metadata about all product fields, dynamic features with possible values, variant attribute groups, manufacturers, suppliers, categories, and tax rules
 - **Improved order count fields in feed**: renamed intervals to `orders_1d`, `orders_7d`, `orders_30d`, `orders_90d`, `orders_365d` with efficient batch SQL query (single query per page)

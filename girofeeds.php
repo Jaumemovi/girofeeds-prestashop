@@ -25,7 +25,7 @@ class Girofeeds extends Module
     {
         $this->name = 'girofeeds';
         $this->tab = 'market_place';
-        $this->version = '3.3.16';
+        $this->version = '3.3.17';
         $this->author = 'Moviendote';
         $this->need_instance = 1;
         $this->module_key = 'c083cf4a313f7b7fdf8bc505dc60c3b6';
