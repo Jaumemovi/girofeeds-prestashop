@@ -141,6 +141,7 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
         $product = new Product($id_product);
         $updated_fields = [];
         $errors = [];
+        $ignored_fields = [];
         $categories_debug = [];
         $images_debug = [];
         $brands_debug = [];
@@ -306,6 +307,24 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
                     } else {
                         $errors = array_merge($errors, $feature_result['errors']);
                     }
+                } else {
+                    $ignored_fields[] = [
+                        'field' => $field_name,
+                        'reason' => 'unknown_field',
+                        'value_type' => gettype($value),
+                        'value_preview' => is_scalar($value) ? substr((string) $value, 0, 120) : null
+                    ];
+                    GirofeedsLogger::getInstance()->addLog(
+                        'updateproduct: unknown field ignored',
+                        3,
+                        null,
+                        [
+                            'product_id' => $product->id,
+                            'field' => $field_name,
+                            'value_type' => gettype($value),
+                            'value_preview' => is_scalar($value) ? substr((string) $value, 0, 120) : null
+                        ]
+                    );
                 }
                 continue;
             }
@@ -320,12 +339,18 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
             }
         }
 
+        $received_fields = array_values(array_filter(array_keys($data), function ($k) {
+            return $k !== 'id_product' && $k !== 'id_product_attribute';
+        }));
+
         if (!empty($errors) && empty($updated_fields)) {
             return [
                 'status' => 'error',
                 'message' => 'Validation errors',
                 'errors' => $errors,
-                'updated_fields' => $updated_fields
+                'updated_fields' => $updated_fields,
+                'ignored_fields' => $ignored_fields,
+                'received_fields' => $received_fields
             ];
         }
 
@@ -333,7 +358,10 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
             return [
                 'status' => 'warning',
                 'message' => 'No valid fields to update',
-                'product_id' => $id_product
+                'product_id' => $id_product,
+                'ignored_fields' => $ignored_fields,
+                'received_fields' => $received_fields,
+                'hint' => 'Check ignored_fields to see which field names were not recognized. Feature fields must match an existing PrestaShop feature name (case-insensitive).'
             ];
         }
 
@@ -356,7 +384,8 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
                 'message' => 'Product updated successfully',
                 'product_id' => $id_product,
                 'updated_fields' => $updated_fields,
-                'errors' => $errors
+                'errors' => $errors,
+                'ignored_fields' => $ignored_fields
             ];
 
             if (!empty($categories_debug)) {
@@ -376,7 +405,8 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
                 'message' => 'Failed to save product',
                 'product_id' => $id_product,
                 'updated_fields' => $updated_fields,
-                'errors' => $errors
+                'errors' => $errors,
+                'ignored_fields' => $ignored_fields
             ];
         }
     }
@@ -2010,13 +2040,22 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
     {
         $id_lang = (int) $this->context->language->id;
         $key = strtolower((string) $field_name);
+        $key_sql = pSQL($key);
 
         $sql = 'SELECT f.id_feature, fl.name FROM ' . _DB_PREFIX_ . 'feature f
                 INNER JOIN ' . _DB_PREFIX_ . 'feature_lang fl ON (f.id_feature = fl.id_feature)
-                WHERE LOWER(fl.name) = "' . pSQL($key) . '" AND fl.id_lang = ' . $id_lang . '
+                WHERE LOWER(fl.name) = "' . $key_sql . '" AND fl.id_lang = ' . $id_lang . '
                 LIMIT 1';
 
         $row = Db::getInstance()->getRow($sql);
+
+        if (!$row || empty($row['id_feature'])) {
+            $sql_any = 'SELECT f.id_feature, fl.name FROM ' . _DB_PREFIX_ . 'feature f
+                        INNER JOIN ' . _DB_PREFIX_ . 'feature_lang fl ON (f.id_feature = fl.id_feature)
+                        WHERE LOWER(fl.name) = "' . $key_sql . '"
+                        LIMIT 1';
+            $row = Db::getInstance()->getRow($sql_any);
+        }
 
         if ($row && !empty($row['id_feature'])) {
             return [
