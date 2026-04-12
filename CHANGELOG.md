@@ -1,5 +1,10 @@
 # Changelog
 
+### 3.3.18
+- **Fixed product feature updates via `/updateproduct`**: features exposed in the feed as top-level fields (lowercased feature name, e.g. `ads_label_0`) were silently ignored by the update endpoint, returning `No valid fields to update`
+- Added fallback in `updateproduct.php` that matches unknown field names case-insensitively against existing PrestaShop features and routes them to the feature-assignment logic (reuses `findOrCreateFeatureValue` + `feature_product` insert)
+- Fallback does **not** auto-create new features — only assigns/creates values for features that already exist, to avoid generating garbage features from misrouted fields
+
 ### 3.3.17
 - **Added all feed-generated fields to `/attributes` endpoint**: `id`, `parent_id`, `gtin`, `title`, `short_description`, `link`, `product_category`, `product_supplier_reference`, `image_link`, `additional_images`, `price_incl_vat`, `sale_price`, `sale_price_incl_vat`, `tax_rate`, `currency`, `visible`, `package_weight/height/width/depth`, `shipping`, `delivery_period`, `orders_1d/7d/30d/90d/365d`, `attachments`
 - These fields are computed by the feed (not direct DB columns) and were previously missing from attribute definitions, making them unavailable for filters, actions, and ecommerce sync in Girofeeds SaaS

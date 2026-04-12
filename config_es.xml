@@ -2,7 +2,7 @@
 <module>
     <name>girofeeds</name>
     <displayName><![CDATA[Girofeeds]]></displayName>
-    <version><![CDATA[3.3.17]]></version>
+    <version><![CDATA[3.3.18]]></version>
     <description><![CDATA[Girofeeds feed management module for PrestaShop]]></description>
     <author><![CDATA[Moviendote]]></author>
     <tab><![CDATA[market_place]]></tab>

@@ -291,6 +291,22 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
             $fieldInfo = $this->getFieldInfo($field_name, $feedFieldsConfig);
 
             if ($fieldInfo === false) {
+                $feature_match = $this->findFeatureByFeedKey($field_name);
+                if ($feature_match !== false) {
+                    $feature_result = $this->handleSingleFeatureUpdate(
+                        $product,
+                        $feature_match['id_feature'],
+                        $feature_match['name'],
+                        $value
+                    );
+                    if ($feature_result['success']) {
+                        foreach ($feature_result['updated_fields'] as $uf) {
+                            $updated_fields[$uf['field']] = $uf['value'];
+                        }
+                    } else {
+                        $errors = array_merge($errors, $feature_result['errors']);
+                    }
+                }
                 continue;
             }
 
@@ -1986,6 +2002,90 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
                 'success' => false,
                 'updated_fields' => $updated_fields,
                 'errors' => array_merge($errors, ['Specifications update failed: ' . $e->getMessage()])
+            ];
+        }
+    }
+
+    private function findFeatureByFeedKey($field_name)
+    {
+        $id_lang = (int) $this->context->language->id;
+        $key = strtolower((string) $field_name);
+
+        $sql = 'SELECT f.id_feature, fl.name FROM ' . _DB_PREFIX_ . 'feature f
+                INNER JOIN ' . _DB_PREFIX_ . 'feature_lang fl ON (f.id_feature = fl.id_feature)
+                WHERE LOWER(fl.name) = "' . pSQL($key) . '" AND fl.id_lang = ' . $id_lang . '
+                LIMIT 1';
+
+        $row = Db::getInstance()->getRow($sql);
+
+        if ($row && !empty($row['id_feature'])) {
+            return [
+                'id_feature' => (int) $row['id_feature'],
+                'name' => $row['name']
+            ];
+        }
+
+        return false;
+    }
+
+    private function handleSingleFeatureUpdate($product, $id_feature, $feature_name, $value)
+    {
+        $updated_fields = [];
+        $errors = [];
+
+        try {
+            if ($value === null) {
+                return [
+                    'success' => true,
+                    'updated_fields' => [],
+                    'errors' => []
+                ];
+            }
+
+            $id_feature_value = $this->findOrCreateFeatureValue((int) $id_feature, $value);
+            if (!$id_feature_value) {
+                return [
+                    'success' => false,
+                    'updated_fields' => [],
+                    'errors' => ["Failed to find/create feature value for {$feature_name}: " . (is_array($value) ? json_encode($value) : $value)]
+                ];
+            }
+
+            $this->removeProductFeature($product->id, (int) $id_feature);
+
+            $inserted = Db::getInstance()->insert('feature_product', [
+                'id_feature' => (int) $id_feature,
+                'id_product' => (int) $product->id,
+                'id_feature_value' => (int) $id_feature_value
+            ]);
+
+            if ($inserted) {
+                $updated_fields[] = [
+                    'field' => "feature[{$feature_name}]",
+                    'value' => is_array($value) ? json_encode($value) : (string) $value
+                ];
+            } else {
+                $errors[] = "Failed to assign feature {$feature_name} to product";
+            }
+
+            return [
+                'success' => count($updated_fields) > 0,
+                'updated_fields' => $updated_fields,
+                'errors' => $errors
+            ];
+
+        } catch (Exception $e) {
+            GirofeedsLogger::getInstance()->addLog(
+                'Error handling single feature update: ' . $e->getMessage(),
+                1,
+                $e,
+                ['product_id' => $product->id, 'feature' => $feature_name]
+            );
+
+            return [
+                'success' => false,
+                'updated_fields' => $updated_fields,
+                'errors' => array_merge($errors, ['Feature update failed: ' . $e->getMessage()])
             ];
         }
     }
