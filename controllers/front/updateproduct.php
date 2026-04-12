@@ -2041,7 +2041,11 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
     {
         $id_lang = (int) $this->context->language->id;
         $raw = (string) $field_name;
-        $key = strtolower($raw);
+        $key = strtolower(trim($raw));
+
+        if ($key === '') {
+            return false;
+        }
 
         if (preg_match('/^feature_(\d+)$/', $key, $m)) {
             $id_feature = (int) $m[1];
@@ -2059,37 +2063,44 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
             }
         }
 
-        $candidates = [$key, str_replace('_', ' ', $key), str_replace(' ', '_', $key)];
-        $candidates = array_unique($candidates);
+        $candidates = array_unique([
+            $key,
+            str_replace('_', ' ', $key),
+            str_replace(' ', '_', $key),
+            str_replace('-', '_', $key),
+            str_replace('-', ' ', $key)
+        ]);
 
-        foreach ($candidates as $candidate) {
-            $candidate_sql = pSQL($candidate);
+        $rows = Db::getInstance()->executeS(
+            'SELECT fl.id_feature, fl.id_lang, fl.name FROM ' . _DB_PREFIX_ . 'feature_lang fl'
+        );
 
-            $row = Db::getInstance()->getRow(
-                'SELECT f.id_feature, fl.name FROM ' . _DB_PREFIX_ . 'feature f
-                 INNER JOIN ' . _DB_PREFIX_ . 'feature_lang fl ON (f.id_feature = fl.id_feature)
-                 WHERE LOWER(fl.name) = "' . $candidate_sql . '" AND fl.id_lang = ' . $id_lang . '
-                 LIMIT 1'
-            );
+        if (!is_array($rows)) {
+            return false;
+        }
 
-            if (!$row || empty($row['id_feature'])) {
-                $row = Db::getInstance()->getRow(
-                    'SELECT f.id_feature, fl.name FROM ' . _DB_PREFIX_ . 'feature f
-                     INNER JOIN ' . _DB_PREFIX_ . 'feature_lang fl ON (f.id_feature = fl.id_feature)
-                     WHERE LOWER(fl.name) = "' . $candidate_sql . '"
-                     LIMIT 1'
-                );
+        $best = null;
+        foreach ($rows as $row) {
+            $row_name = strtolower(trim((string) $row['name']));
+            if ($row_name === '') {
+                continue;
             }
-
-            if ($row && !empty($row['id_feature'])) {
-                return [
+            if (in_array($row_name, $candidates, true)) {
+                $match = [
                     'id_feature' => (int) $row['id_feature'],
-                    'name' => $row['name']
+                    'name' => $row['name'],
+                    'id_lang' => (int) $row['id_lang']
                 ];
+                if ((int) $row['id_lang'] === $id_lang) {
+                    return $match;
+                }
+                if ($best === null) {
+                    $best = $match;
+                }
             }
         }
 
-        return false;
+        return $best !== null ? $best : false;
     }
 
     private function getAvailableFeaturesDebug()
