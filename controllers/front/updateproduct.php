@@ -361,7 +361,8 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
                 'product_id' => $id_product,
                 'ignored_fields' => $ignored_fields,
                 'received_fields' => $received_fields,
-                'hint' => 'Check ignored_fields to see which field names were not recognized. Feature fields must match an existing PrestaShop feature name (case-insensitive).'
+                'hint' => 'Check ignored_fields to see which field names were not recognized. Feature fields must match an existing PrestaShop feature name (case-insensitive) or use the feature_<id> key.',
+                'features_debug' => $this->getAvailableFeaturesDebug()
             ];
         }
 
@@ -2039,32 +2040,88 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
     private function findFeatureByFeedKey($field_name)
     {
         $id_lang = (int) $this->context->language->id;
-        $key = strtolower((string) $field_name);
-        $key_sql = pSQL($key);
+        $raw = (string) $field_name;
+        $key = strtolower($raw);
 
-        $sql = 'SELECT f.id_feature, fl.name FROM ' . _DB_PREFIX_ . 'feature f
-                INNER JOIN ' . _DB_PREFIX_ . 'feature_lang fl ON (f.id_feature = fl.id_feature)
-                WHERE LOWER(fl.name) = "' . $key_sql . '" AND fl.id_lang = ' . $id_lang . '
-                LIMIT 1';
-
-        $row = Db::getInstance()->getRow($sql);
-
-        if (!$row || empty($row['id_feature'])) {
-            $sql_any = 'SELECT f.id_feature, fl.name FROM ' . _DB_PREFIX_ . 'feature f
-                        INNER JOIN ' . _DB_PREFIX_ . 'feature_lang fl ON (f.id_feature = fl.id_feature)
-                        WHERE LOWER(fl.name) = "' . $key_sql . '"
-                        LIMIT 1';
-            $row = Db::getInstance()->getRow($sql_any);
+        if (preg_match('/^feature_(\d+)$/', $key, $m)) {
+            $id_feature = (int) $m[1];
+            $name_row = Db::getInstance()->getRow(
+                'SELECT fl.name FROM ' . _DB_PREFIX_ . 'feature_lang fl
+                 WHERE fl.id_feature = ' . $id_feature . '
+                 ORDER BY fl.id_lang = ' . $id_lang . ' DESC
+                 LIMIT 1'
+            );
+            if ($name_row) {
+                return [
+                    'id_feature' => $id_feature,
+                    'name' => $name_row['name']
+                ];
+            }
         }
 
-        if ($row && !empty($row['id_feature'])) {
-            return [
-                'id_feature' => (int) $row['id_feature'],
-                'name' => $row['name']
-            ];
+        $candidates = [$key, str_replace('_', ' ', $key), str_replace(' ', '_', $key)];
+        $candidates = array_unique($candidates);
+
+        foreach ($candidates as $candidate) {
+            $candidate_sql = pSQL($candidate);
+
+            $row = Db::getInstance()->getRow(
+                'SELECT f.id_feature, fl.name FROM ' . _DB_PREFIX_ . 'feature f
+                 INNER JOIN ' . _DB_PREFIX_ . 'feature_lang fl ON (f.id_feature = fl.id_feature)
+                 WHERE LOWER(fl.name) = "' . $candidate_sql . '" AND fl.id_lang = ' . $id_lang . '
+                 LIMIT 1'
+            );
+
+            if (!$row || empty($row['id_feature'])) {
+                $row = Db::getInstance()->getRow(
+                    'SELECT f.id_feature, fl.name FROM ' . _DB_PREFIX_ . 'feature f
+                     INNER JOIN ' . _DB_PREFIX_ . 'feature_lang fl ON (f.id_feature = fl.id_feature)
+                     WHERE LOWER(fl.name) = "' . $candidate_sql . '"
+                     LIMIT 1'
+                );
+            }
+
+            if ($row && !empty($row['id_feature'])) {
+                return [
+                    'id_feature' => (int) $row['id_feature'],
+                    'name' => $row['name']
+                ];
+            }
         }
 
         return false;
+    }
+
+    private function getAvailableFeaturesDebug()
+    {
+        $id_lang = (int) $this->context->language->id;
+        $rows = Db::getInstance()->executeS(
+            'SELECT f.id_feature, fl.id_lang, fl.name FROM ' . _DB_PREFIX_ . 'feature f
+             INNER JOIN ' . _DB_PREFIX_ . 'feature_lang fl ON (f.id_feature = fl.id_feature)
+             ORDER BY f.id_feature, fl.id_lang
+             LIMIT 100'
+        );
+
+        $features = [];
+        if (is_array($rows)) {
+            foreach ($rows as $r) {
+                $id = (int) $r['id_feature'];
+                if (!isset($features[$id])) {
+                    $features[$id] = [
+                        'id_feature' => $id,
+                        'key' => 'feature_' . $id,
+                        'names_by_lang' => []
+                    ];
+                }
+                $features[$id]['names_by_lang']['lang_' . (int) $r['id_lang']] = $r['name'];
+            }
+        }
+
+        return [
+            'context_id_lang' => $id_lang,
+            'total_features_sampled' => count($features),
+            'features' => array_values($features)
+        ];
     }
 
     private function handleSingleFeatureUpdate($product, $id_feature, $feature_name, $value)
