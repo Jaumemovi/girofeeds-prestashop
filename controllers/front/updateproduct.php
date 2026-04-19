@@ -1079,16 +1079,30 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
             } elseif (is_string($category_data)) {
                 $category_name = trim($category_data);
                 if (!empty($category_name)) {
-                    $result = $this->findOrCreateCategoryByName($category_name);
-                    if ($result['id_category']) {
-                        $product->id_category_default = $result['id_category'];
-                        $debug['final_category_id'] = $result['id_category'];
-                        $debug['final_category_name'] = $category_name;
-                        $debug['created'] = $result['created'];
-                        $debug['existing'] = !$result['created'];
-                        $updated_fields[] = ['field' => 'id_category_default', 'value' => $result['id_category']];
+                    if (strpos($category_name, ' > ') !== false) {
+                        $path_result = $this->findCategoryByPath($category_name);
+                        if ($path_result['id_category']) {
+                            $product->id_category_default = $path_result['id_category'];
+                            $debug['final_category_id'] = $path_result['id_category'];
+                            $debug['final_category_name'] = $category_name;
+                            $debug['existing'] = true;
+                            $debug['matched_by'] = 'path';
+                            $updated_fields[] = ['field' => 'id_category_default', 'value' => $path_result['id_category']];
+                        } else {
+                            $errors[] = "Failed to find category by path: {$category_name}";
+                        }
                     } else {
-                        $errors[] = "Failed to create or find category: {$category_name}";
+                        $result = $this->findOrCreateCategoryByName($category_name);
+                        if ($result['id_category']) {
+                            $product->id_category_default = $result['id_category'];
+                            $debug['final_category_id'] = $result['id_category'];
+                            $debug['final_category_name'] = $category_name;
+                            $debug['created'] = $result['created'];
+                            $debug['existing'] = !$result['created'];
+                            $updated_fields[] = ['field' => 'id_category_default', 'value' => $result['id_category']];
+                        } else {
+                            $errors[] = "Failed to create or find category: {$category_name}";
+                        }
                     }
                 } else {
                     $errors[] = "Category name cannot be empty";
@@ -1270,6 +1284,60 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
 
         $new_id = $this->createCategory($category_name, 2);
         return ['id_category' => $new_id, 'created' => ($new_id !== false)];
+    }
+
+    private function findCategoryByPath($path)
+    {
+        $id_lang = (int) Configuration::get('PS_LANG_DEFAULT');
+        $segments = array_map('trim', explode(' > ', $path));
+        $segments = array_values(array_filter($segments, function ($s) {
+            return $s !== '';
+        }));
+
+        if (empty($segments)) {
+            return ['id_category' => false];
+        }
+
+        $parent_id = 0;
+        $current_id = false;
+
+        foreach ($segments as $index => $segment) {
+            $sql = 'SELECT c.id_category
+                    FROM ' . _DB_PREFIX_ . 'category c
+                    LEFT JOIN ' . _DB_PREFIX_ . 'category_lang cl ON (c.id_category = cl.id_category)
+                    WHERE LOWER(cl.name) = "' . pSQL(Tools::strtolower($segment)) . '"
+                    AND cl.id_lang = ' . (int) $id_lang . '
+                    AND c.active = 1';
+
+            if ($index === 0) {
+                $sql .= ' AND c.id_parent <= 2';
+            } else {
+                $sql .= ' AND c.id_parent = ' . (int) $parent_id;
+            }
+            $sql .= ' LIMIT 1';
+
+            $found_id = Db::getInstance()->getValue($sql);
+
+            if (!$found_id && $index === 0) {
+                $sql_fallback = 'SELECT c.id_category
+                        FROM ' . _DB_PREFIX_ . 'category c
+                        LEFT JOIN ' . _DB_PREFIX_ . 'category_lang cl ON (c.id_category = cl.id_category)
+                        WHERE LOWER(cl.name) = "' . pSQL(Tools::strtolower($segment)) . '"
+                        AND cl.id_lang = ' . (int) $id_lang . '
+                        AND c.active = 1
+                        LIMIT 1';
+                $found_id = Db::getInstance()->getValue($sql_fallback);
+            }
+
+            if (!$found_id) {
+                return ['id_category' => false];
+            }
+
+            $current_id = (int) $found_id;
+            $parent_id = $current_id;
+        }
+
+        return ['id_category' => $current_id];
     }
 
     private function clearProductCategories($id_product)
