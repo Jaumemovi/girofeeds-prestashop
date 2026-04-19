@@ -1,5 +1,11 @@
 # Changelog
 
+### 3.3.20
+- **Multi-select order statuses for orders count**: the `GIROFEEDS_ORDERS_COUNT_STATUS` setting now accepts multiple order states. Order-count fields in the feed (`orders_1d`, `orders_7d`, `orders_30d`, `orders_90d`, `orders_365d`) aggregate orders across all selected statuses instead of a single one.
+- Configuration form field upgraded to a multi-select (`chosen` class) and placeholder entry removed.
+- Selection is stored as a CSV of integer IDs — backward-compatible with previous single-ID values (a single ID is still a valid CSV of one element).
+- Feed SQL in `controllers/front/feed.php` (`fetchProductOrdersCounts`, `fetchBatchProductOrdersCounts`) now uses `AND o.current_state IN (...)` instead of an equality match. New helper `getConfiguredOrderStatusIds()` parses and sanitizes the stored value to `array<int>`.
+
 ### 3.3.18
 - **Fixed product feature updates via `/updateproduct`**: features exposed in the feed as top-level fields (lowercased feature name, e.g. `ads_label_0`) were silently ignored by the update endpoint, returning `No valid fields to update`
 - Added fallback in `updateproduct.php` that matches unknown field names case-insensitively against existing PrestaShop features and routes them to the feature-assignment logic (reuses `findOrCreateFeatureValue` + `feature_product` insert)
