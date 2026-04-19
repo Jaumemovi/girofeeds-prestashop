@@ -237,7 +237,7 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
                     }
                     $treeCache = GirofeedsCache::getByKey('CAT_TREE_' . $row['id_category_default'], self::$cache_lifetime_categories, true, (int) $this->context->language->id);
                     if ((int) $treeCache->id > 0) {
-                        $row['product_category'] = $treeCache->cache_value;
+                        $row['category'] = $treeCache->cache_value;
                     } else {
                         $defaultTree = $this->getParentsCategories($row['id_category_default'], $this->getAllCategories());
                         $tmp = [];
@@ -246,7 +246,7 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
                         }
                         $treeCache->cache_value = join(' > ', $tmp);
                         $treeCache->save();
-                        $row['product_category'] = join(' > ', $tmp);
+                        $row['category'] = join(' > ', $tmp);
                     }
 
                     $productCategoriesCache = GirofeedsCache::getByKey('PROD_CATS_' . $row['parent_id'], self::$cache_lifetime_categories, true, (int) $this->context->language->id);
@@ -832,7 +832,7 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
     {
         if (Configuration::get('GIROFEEDS_FEEDMODE_ALTERNATIVE') != 1) {
             return 'GROUP_CONCAT(DISTINCT cpl2.id_category SEPARATOR \',\') as categories_ids,
-                    cpl.name as product_category, ';
+                    cpl.name as category, ';
         }
 
         return '';

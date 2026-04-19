@@ -5,6 +5,11 @@
 - Configuration form field upgraded to a multi-select (`chosen` class) and placeholder entry removed.
 - Selection is stored as a CSV of integer IDs — backward-compatible with previous single-ID values (a single ID is still a valid CSV of one element).
 - Feed SQL in `controllers/front/feed.php` (`fetchProductOrdersCounts`, `fetchBatchProductOrdersCounts`) now uses `AND o.current_state IN (...)` instead of an equality match. New helper `getConfiguredOrderStatusIds()` parses and sanitizes the stored value to `array<int>`.
+### 3.3.19
+- **Renamed `product_category` to `category`** in both `/feed` and `/attributes` for consistency with the `category` field already accepted by `/updateproduct`
+- **Added `path` to each category in `/attributes`**: full tree path (`"Cat > Subcat > Subcat2"`) computed from the parent chain, ready to be used as a human-readable reference value
+- **New `reference` data type in `/attributes`**: the `category` and `brand` fields are now declared with `type: 'reference'` and `referenceTo: 'categories'` / `'manufacturers'` so consumers can render a proper picker instead of a free-text input
+- **`/updateproduct` accepts category paths**: when the `category` field arrives as a string containing ` > `, the endpoint walks the tree segment by segment from the root to resolve the exact category (avoids ambiguity when multiple categories share the same leaf name). Numeric ids and single-segment names keep working as before
 
 ### 3.3.18
 - **Fixed product feature updates via `/updateproduct`**: features exposed in the feed as top-level fields (lowercased feature name, e.g. `ads_label_0`) were silently ignored by the update endpoint, returning `No valid fields to update`
