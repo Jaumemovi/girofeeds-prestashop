@@ -1,5 +1,10 @@
 # Changelog
 
+### 3.3.20
+- **Multi-select order statuses for orders count**: the `GIROFEEDS_ORDERS_COUNT_STATUS` setting now accepts multiple order states. Order-count fields in the feed (`orders_1d`, `orders_7d`, `orders_30d`, `orders_90d`, `orders_365d`) aggregate orders across all selected statuses instead of a single one.
+- Configuration form field upgraded to a multi-select (`chosen` class) and placeholder entry removed.
+- Selection is stored as a CSV of integer IDs — backward-compatible with previous single-ID values (a single ID is still a valid CSV of one element).
+- Feed SQL in `controllers/front/feed.php` (`fetchProductOrdersCounts`, `fetchBatchProductOrdersCounts`) now uses `AND o.current_state IN (...)` instead of an equality match. New helper `getConfiguredOrderStatusIds()` parses and sanitizes the stored value to `array<int>`.
 ### 3.3.19
 - **Renamed `product_category` to `category`** in both `/feed` and `/attributes` for consistency with the `category` field already accepted by `/updateproduct`
 - **Added `path` to each category in `/attributes`**: full tree path (`"Cat > Subcat > Subcat2"`) computed from the parent chain, ready to be used as a human-readable reference value
