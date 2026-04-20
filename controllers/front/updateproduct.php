@@ -175,20 +175,9 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
             }
 
             if ($field_name === 'categories') {
-                $categories_result = $this->handleCategoriesUpdate($product, $value);
-                if ($categories_result['success']) {
-                    foreach ($categories_result['updated_fields'] as $uf) {
-                        $updated_fields[$uf['field']] = $uf['value'];
-                    }
-                    if (isset($categories_result['debug'])) {
-                        $categories_debug = array_merge(
-                            isset($categories_debug) ? $categories_debug : [],
-                            $categories_result['debug']
-                        );
-                    }
-                } else {
-                    $errors = array_merge($errors, $categories_result['errors']);
-                }
+                // The 'categories' array is read-only for now. Accept the payload for
+                // backward compatibility but do not modify product categories from it.
+                $ignored_fields[] = 'categories';
                 continue;
             }
 
@@ -1089,19 +1078,22 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
                             $debug['matched_by'] = 'path';
                             $updated_fields[] = ['field' => 'id_category_default', 'value' => $path_result['id_category']];
                         } else {
-                            $errors[] = "Failed to find category by path: {$category_name}";
+                            $errors[] = "Failed to find existing category by path: {$category_name}";
                         }
                     } else {
-                        $result = $this->findOrCreateCategoryByName($category_name);
-                        if ($result['id_category']) {
-                            $product->id_category_default = $result['id_category'];
-                            $debug['final_category_id'] = $result['id_category'];
+                        // Plain name: look up an existing category only. We no longer
+                        // create categories on the fly; the Girofeeds UI only allows
+                        // selecting existing categories.
+                        $id_category = $this->findCategoryByName($category_name);
+                        if ($id_category) {
+                            $product->id_category_default = (int) $id_category;
+                            $debug['final_category_id'] = (int) $id_category;
                             $debug['final_category_name'] = $category_name;
-                            $debug['created'] = $result['created'];
-                            $debug['existing'] = !$result['created'];
-                            $updated_fields[] = ['field' => 'id_category_default', 'value' => $result['id_category']];
+                            $debug['existing'] = true;
+                            $debug['matched_by'] = 'name';
+                            $updated_fields[] = ['field' => 'id_category_default', 'value' => (int) $id_category];
                         } else {
-                            $errors[] = "Failed to create or find category: {$category_name}";
+                            $errors[] = "Failed to find existing category by name: {$category_name}";
                         }
                     }
                 } else {
@@ -1288,7 +1280,6 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
 
     private function findCategoryByPath($path)
     {
-        $id_lang = (int) Configuration::get('PS_LANG_DEFAULT');
         $segments = array_map('trim', explode(' > ', $path));
         $segments = array_values(array_filter($segments, function ($s) {
             return $s !== '';
@@ -1302,14 +1293,19 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
         $current_id = false;
 
         foreach ($segments as $index => $segment) {
-            $sql = 'SELECT c.id_category
+            // Search across all languages (DISTINCT) so the path resolves regardless
+            // of which language the Girofeeds feed used to build it.
+            $sql = 'SELECT DISTINCT c.id_category
                     FROM ' . _DB_PREFIX_ . 'category c
-                    LEFT JOIN ' . _DB_PREFIX_ . 'category_lang cl ON (c.id_category = cl.id_category)
+                    INNER JOIN ' . _DB_PREFIX_ . 'category_lang cl ON (c.id_category = cl.id_category)
                     WHERE LOWER(cl.name) = "' . pSQL(Tools::strtolower($segment)) . '"
-                    AND cl.id_lang = ' . (int) $id_lang . '
                     AND c.active = 1';
 
             if ($index === 0) {
+                // First segment: allow the shop/home root. PrestaShop stores the
+                // root category with id_parent = 0 and the Home category with
+                // id_parent = 1, so accept any parent <= 2 (covers single and
+                // multi-shop setups where id_category may be > 2).
                 $sql .= ' AND c.id_parent <= 2';
             } else {
                 $sql .= ' AND c.id_parent = ' . (int) $parent_id;
@@ -1319,11 +1315,13 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
             $found_id = Db::getInstance()->getValue($sql);
 
             if (!$found_id && $index === 0) {
-                $sql_fallback = 'SELECT c.id_category
+                // Fallback for first segment: accept a match under any parent so
+                // the path still resolves when the "Home" (or equivalent) node is
+                // nested deeper than usual.
+                $sql_fallback = 'SELECT DISTINCT c.id_category
                         FROM ' . _DB_PREFIX_ . 'category c
-                        LEFT JOIN ' . _DB_PREFIX_ . 'category_lang cl ON (c.id_category = cl.id_category)
+                        INNER JOIN ' . _DB_PREFIX_ . 'category_lang cl ON (c.id_category = cl.id_category)
                         WHERE LOWER(cl.name) = "' . pSQL(Tools::strtolower($segment)) . '"
-                        AND cl.id_lang = ' . (int) $id_lang . '
                         AND c.active = 1
                         LIMIT 1';
                 $found_id = Db::getInstance()->getValue($sql_fallback);
@@ -1338,6 +1336,23 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
         }
 
         return ['id_category' => $current_id];
+    }
+
+    private function findCategoryByName($category_name)
+    {
+        // Look up an existing category by name across all languages. Returns the
+        // category id if found, false otherwise. Used by handleCategoryUpdate to
+        // resolve plain-name inputs without ever creating new categories.
+        $sql = 'SELECT c.id_category
+                FROM ' . _DB_PREFIX_ . 'category c
+                INNER JOIN ' . _DB_PREFIX_ . 'category_lang cl ON (c.id_category = cl.id_category)
+                WHERE LOWER(cl.name) = "' . pSQL(Tools::strtolower($category_name)) . '"
+                AND c.active = 1
+                LIMIT 1';
+
+        $existing_id = Db::getInstance()->getValue($sql);
+
+        return $existing_id ? (int) $existing_id : false;
     }
 
     private function clearProductCategories($id_product)
