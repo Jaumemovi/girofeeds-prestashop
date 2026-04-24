@@ -1,5 +1,11 @@
 # Changelog
 
+### 3.3.22
+- **`findCategoryByPath` reescrita en modo bottom-up**: busca primero todas las categorías activas cuyo **último segmento** (leaf) coincida en cualquier idioma y, por cada candidata, sube por la cadena de ancestros verificando que cada segmento previo coincida con el nombre de la categoría padre correspondiente (también en cualquier idioma). Resuelve correctamente paths como `Home > Limpiadores Faciales` aunque los segmentos estén en idiomas distintos o aunque la raíz visible no esté directamente bajo `id_parent <= 2`.
+- **Comparación tolerante a whitespace**: se aplica `LOWER(TRIM(...))` tanto en SQL como en PHP para evitar fallos por espacios sobrantes en nombres de categoría.
+- **Mensaje de error diagnóstico**: cuando la ruta no se encuentra, el error incluye el número de candidatos con ese nombre de leaf y el path real reconstruido de las primeras 3 coincidencias, para ver por qué ha fallado (leaf inexistente, o existe pero bajo otro ancestro).
+- **Desempate entre múltiples candidatos**: si varias categorías matchean el path completo, se prefiere la de menor `level_depth` (más cercana a la raíz) por estabilidad.
+
 ### 3.3.21
 - **`/updateproduct` ignora ahora el array `categories`**: el campo se considera de solo lectura y no se procesa aunque venga en el payload. La asignación de categorías sigue disponible únicamente a través del campo singular `category` (id, nombre o path `Cat > Subcat`).
 - **`category` por nombre simple no crea categorías nuevas**: cuando el valor es un nombre plano (sin ` > `), se resuelve contra una categoría existente (búsqueda case-insensitive en `category_lang`). Si no existe, se devuelve error en lugar de crearla automáticamente.

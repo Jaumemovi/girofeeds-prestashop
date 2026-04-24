@@ -1078,7 +1078,8 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
                             $debug['matched_by'] = 'path';
                             $updated_fields[] = ['field' => 'id_category_default', 'value' => $path_result['id_category']];
                         } else {
-                            $errors[] = "Failed to find existing category by path: {$category_name}";
+                            $diagnostic = isset($path_result['debug']) ? ' (' . $path_result['debug'] . ')' : '';
+                            $errors[] = "Failed to find existing category by path: {$category_name}{$diagnostic}";
                         }
                     } else {
                         // Plain name: look up an existing category only. We no longer
@@ -1286,56 +1287,136 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
         }));
 
         if (empty($segments)) {
-            return ['id_category' => false];
+            return ['id_category' => false, 'debug' => 'empty path'];
         }
 
-        $parent_id = 0;
-        $current_id = false;
+        $segments_count = count($segments);
+        $leaf_name = $segments[$segments_count - 1];
 
-        foreach ($segments as $index => $segment) {
-            // Search across all languages (DISTINCT) so the path resolves regardless
-            // of which language the Girofeeds feed used to build it.
-            $sql = 'SELECT DISTINCT c.id_category
-                    FROM ' . _DB_PREFIX_ . 'category c
-                    INNER JOIN ' . _DB_PREFIX_ . 'category_lang cl ON (c.id_category = cl.id_category)
-                    WHERE LOWER(cl.name) = "' . pSQL(Tools::strtolower($segment)) . '"
-                    AND c.active = 1';
+        // Bottom-up strategy: find every active category whose name (in ANY
+        // language, trimmed and case-insensitive) matches the final segment,
+        // then for each candidate walk up the ancestor chain and verify that
+        // every previous segment matches the corresponding ancestor's name in
+        // any language. This is resilient to:
+        //   - multi-language shops where parent/child are named in different langs
+        //   - extra whitespace in cl.name
+        //   - root "Home" (or equivalent) living deeper than id_parent <= 2
+        //   - ambiguity when several categories share the same leaf name
+        $leaf_sql = 'SELECT DISTINCT c.id_category
+                     FROM ' . _DB_PREFIX_ . 'category c
+                     INNER JOIN ' . _DB_PREFIX_ . 'category_lang cl ON (c.id_category = cl.id_category)
+                     WHERE LOWER(TRIM(cl.name)) = "' . pSQL(Tools::strtolower(trim($leaf_name))) . '"
+                     AND c.active = 1';
+        $leaf_candidates = Db::getInstance()->executeS($leaf_sql) ?: [];
 
-            if ($index === 0) {
-                // First segment: allow the shop/home root. PrestaShop stores the
-                // root category with id_parent = 0 and the Home category with
-                // id_parent = 1, so accept any parent <= 2 (covers single and
-                // multi-shop setups where id_category may be > 2).
-                $sql .= ' AND c.id_parent <= 2';
-            } else {
-                $sql .= ' AND c.id_parent = ' . (int) $parent_id;
-            }
-            $sql .= ' LIMIT 1';
-
-            $found_id = Db::getInstance()->getValue($sql);
-
-            if (!$found_id && $index === 0) {
-                // Fallback for first segment: accept a match under any parent so
-                // the path still resolves when the "Home" (or equivalent) node is
-                // nested deeper than usual.
-                $sql_fallback = 'SELECT DISTINCT c.id_category
-                        FROM ' . _DB_PREFIX_ . 'category c
-                        INNER JOIN ' . _DB_PREFIX_ . 'category_lang cl ON (c.id_category = cl.id_category)
-                        WHERE LOWER(cl.name) = "' . pSQL(Tools::strtolower($segment)) . '"
-                        AND c.active = 1
-                        LIMIT 1';
-                $found_id = Db::getInstance()->getValue($sql_fallback);
-            }
-
-            if (!$found_id) {
-                return ['id_category' => false];
-            }
-
-            $current_id = (int) $found_id;
-            $parent_id = $current_id;
+        if (empty($leaf_candidates)) {
+            return [
+                'id_category' => false,
+                'debug' => 'leaf segment "' . $leaf_name . '" not found in any language',
+            ];
         }
 
-        return ['id_category' => $current_id];
+        $matched_ids = [];
+        foreach ($leaf_candidates as $candidate) {
+            $candidate_id = (int) $candidate['id_category'];
+            if ($this->categoryPathMatchesAncestors($candidate_id, $segments)) {
+                $matched_ids[] = $candidate_id;
+            }
+        }
+
+        if (count($matched_ids) === 1) {
+            return ['id_category' => $matched_ids[0]];
+        }
+
+        if (count($matched_ids) > 1) {
+            // Prefer the shallowest match (closest to the root) for stability.
+            $best_id = $matched_ids[0];
+            $best_depth = PHP_INT_MAX;
+            foreach ($matched_ids as $mid) {
+                $depth = (int) Db::getInstance()->getValue(
+                    'SELECT level_depth FROM ' . _DB_PREFIX_ . 'category WHERE id_category = ' . (int) $mid
+                );
+                if ($depth < $best_depth) {
+                    $best_depth = $depth;
+                    $best_id = $mid;
+                }
+            }
+            return ['id_category' => $best_id];
+        }
+
+        // No full-path match: provide a diagnostic showing each leaf candidate's
+        // actual path so the caller can see why the lookup failed.
+        $samples = [];
+        foreach (array_slice($leaf_candidates, 0, 3) as $candidate) {
+            $cid = (int) $candidate['id_category'];
+            $samples[] = '#' . $cid . ' = "' . $this->buildCategoryPathForDebug($cid) . '"';
+        }
+        return [
+            'id_category' => false,
+            'debug' => 'leaf "' . $leaf_name . '" matched ' . count($leaf_candidates)
+                . ' categor' . (count($leaf_candidates) === 1 ? 'y' : 'ies')
+                . ' but none have ancestor path "' . $path . '". Actual paths: '
+                . implode(', ', $samples),
+        ];
+    }
+
+    private function categoryPathMatchesAncestors($id_category, array $expected_segments)
+    {
+        $current_id = (int) $id_category;
+        for ($i = count($expected_segments) - 1; $i >= 0; $i--) {
+            if ($current_id <= 0) {
+                return false;
+            }
+            $expected = Tools::strtolower(trim($expected_segments[$i]));
+            if (!$this->categoryHasNameInAnyLang($current_id, $expected)) {
+                return false;
+            }
+            $parent_id = (int) Db::getInstance()->getValue(
+                'SELECT id_parent FROM ' . _DB_PREFIX_ . 'category WHERE id_category = ' . (int) $current_id
+            );
+            if ($parent_id === $current_id) {
+                // Safety: stop on self-parent loops.
+                return $i === 0;
+            }
+            $current_id = $parent_id;
+        }
+        return true;
+    }
+
+    private function categoryHasNameInAnyLang($id_category, $lowercased_trimmed_name)
+    {
+        $sql = 'SELECT 1 FROM ' . _DB_PREFIX_ . 'category_lang cl
+                WHERE cl.id_category = ' . (int) $id_category . '
+                AND LOWER(TRIM(cl.name)) = "' . pSQL($lowercased_trimmed_name) . '"
+                LIMIT 1';
+        return (bool) Db::getInstance()->getValue($sql);
+    }
+
+    private function buildCategoryPathForDebug($id_category)
+    {
+        $segments = [];
+        $current_id = (int) $id_category;
+        $guard = 0;
+        while ($current_id > 1 && $guard < 50) {
+            $row = Db::getInstance()->getRow(
+                'SELECT c.id_parent,
+                        (SELECT cl.name FROM ' . _DB_PREFIX_ . 'category_lang cl
+                         WHERE cl.id_category = c.id_category ORDER BY cl.id_lang ASC LIMIT 1) AS name
+                 FROM ' . _DB_PREFIX_ . 'category c
+                 WHERE c.id_category = ' . (int) $current_id
+            );
+            if (!$row) {
+                break;
+            }
+            array_unshift($segments, (string) $row['name']);
+            $next = (int) $row['id_parent'];
+            if ($next === $current_id) {
+                break;
+            }
+            $current_id = $next;
+            $guard++;
+        }
+        return implode(' > ', $segments);
     }
 
     private function findCategoryByName($category_name)
