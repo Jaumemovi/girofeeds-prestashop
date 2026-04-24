@@ -151,6 +151,21 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
 
         $id_product_attribute = isset($data['id_product_attribute']) ? (int) $data['id_product_attribute'] : 0;
 
+        // Ensure 'category' is processed before 'categories' so that
+        // id_category_default is up-to-date when building the list of
+        // associated categories (the main category must always be present
+        // in the associated categories).
+        if (array_key_exists('category', $data) && array_key_exists('categories', $data)) {
+            $ordered = ['category' => $data['category']];
+            foreach ($data as $k => $v) {
+                if ($k === 'category') {
+                    continue;
+                }
+                $ordered[$k] = $v;
+            }
+            $data = $ordered;
+        }
+
         foreach ($data as $field_name => $value) {
             if ($field_name === 'id_product' || $field_name === 'id_product_attribute') {
                 continue;
@@ -175,9 +190,20 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
             }
 
             if ($field_name === 'categories') {
-                // The 'categories' array is read-only for now. Accept the payload for
-                // backward compatibility but do not modify product categories from it.
-                $ignored_fields[] = 'categories';
+                $categories_result = $this->handleCategoriesUpdate($product, $value);
+                if ($categories_result['success']) {
+                    foreach ($categories_result['updated_fields'] as $uf) {
+                        $updated_fields[$uf['field']] = $uf['value'];
+                    }
+                    if (isset($categories_result['debug'])) {
+                        $categories_debug = array_merge(
+                            isset($categories_debug) ? $categories_debug : [],
+                            $categories_result['debug']
+                        );
+                    }
+                } else {
+                    $errors = array_merge($errors, $categories_result['errors']);
+                }
                 continue;
             }
 
@@ -1134,11 +1160,11 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
         $errors = [];
         $debug = [
             'input' => $categories_data,
-            'created_categories' => [],
-            'existing_categories' => [],
+            'resolved_categories' => [],
             'associated_category_ids' => [],
             'previous_categories' => [],
-            'skipped_categories' => []
+            'skipped_categories' => [],
+            'default_category_included' => false,
         ];
 
         try {
@@ -1156,54 +1182,94 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
 
             $category_ids = [];
 
-            if ($product->id_category_default) {
-                $category_ids[] = (int) $product->id_category_default;
-            }
-
-            foreach ($categories_data as $category_name) {
-                if (empty($category_name) || !is_string($category_name)) {
-                    $debug['skipped_categories'][] = [
-                        'value' => $category_name,
-                        'reason' => 'Empty or not a string'
-                    ];
-                    continue;
-                }
-
-                $category_name = trim($category_name);
-                if (empty($category_name)) {
-                    $debug['skipped_categories'][] = [
-                        'value' => $category_name,
-                        'reason' => 'Empty after trim'
-                    ];
-                    continue;
-                }
-
-                $result = $this->findOrCreateCategoryByName($category_name);
-
-                if ($result['id_category']) {
-                    $category_ids[] = (int) $result['id_category'];
-
-                    if ($result['created']) {
-                        $debug['created_categories'][] = [
-                            'id' => $result['id_category'],
-                            'name' => $category_name
+            foreach ($categories_data as $category_value) {
+                if (is_numeric($category_value)) {
+                    $id_category = (int) $category_value;
+                    if ($this->categoryExists($id_category)) {
+                        $category_ids[] = $id_category;
+                        $debug['resolved_categories'][] = [
+                            'input' => $category_value,
+                            'id' => $id_category,
+                            'matched_by' => 'id',
                         ];
                     } else {
-                        $debug['existing_categories'][] = [
-                            'id' => $result['id_category'],
-                            'name' => $category_name
+                        $debug['skipped_categories'][] = [
+                            'value' => $category_value,
+                            'reason' => "Category with ID {$id_category} does not exist",
+                        ];
+                    }
+                    continue;
+                }
+
+                if (!is_string($category_value)) {
+                    $debug['skipped_categories'][] = [
+                        'value' => $category_value,
+                        'reason' => 'Not a string or numeric id',
+                    ];
+                    continue;
+                }
+
+                $category_name = trim($category_value);
+                if ($category_name === '') {
+                    $debug['skipped_categories'][] = [
+                        'value' => $category_value,
+                        'reason' => 'Empty after trim',
+                    ];
+                    continue;
+                }
+
+                // Same resolution strategy as handleCategoryUpdate: if the
+                // value contains the ' > ' separator treat it as a category
+                // path and resolve it bottom-up; otherwise look up by plain
+                // name across all languages. Never create categories on the
+                // fly — the Girofeeds UI only exposes existing categories.
+                if (strpos($category_name, ' > ') !== false) {
+                    $path_result = $this->findCategoryByPath($category_name);
+                    if ($path_result['id_category']) {
+                        $category_ids[] = (int) $path_result['id_category'];
+                        $debug['resolved_categories'][] = [
+                            'input' => $category_name,
+                            'id' => (int) $path_result['id_category'],
+                            'matched_by' => 'path',
+                        ];
+                    } else {
+                        $diagnostic = isset($path_result['debug']) ? ' (' . $path_result['debug'] . ')' : '';
+                        $errors[] = "Failed to find existing category by path: {$category_name}{$diagnostic}";
+                        $debug['skipped_categories'][] = [
+                            'value' => $category_name,
+                            'reason' => 'Path not found' . $diagnostic,
                         ];
                     }
                 } else {
-                    $errors[] = "Failed to find or create category: {$category_name}";
-                    $debug['skipped_categories'][] = [
-                        'value' => $category_name,
-                        'reason' => 'Failed to find or create'
-                    ];
+                    $id_category = $this->findCategoryByName($category_name);
+                    if ($id_category) {
+                        $category_ids[] = (int) $id_category;
+                        $debug['resolved_categories'][] = [
+                            'input' => $category_name,
+                            'id' => (int) $id_category,
+                            'matched_by' => 'name',
+                        ];
+                    } else {
+                        $errors[] = "Failed to find existing category by name: {$category_name}";
+                        $debug['skipped_categories'][] = [
+                            'value' => $category_name,
+                            'reason' => 'Name not found',
+                        ];
+                    }
                 }
             }
 
-            $category_ids = array_unique($category_ids);
+            // The main category (id_category_default) must always be present
+            // in the associated categories list. Add it if it is missing.
+            $default_category_id = (int) $product->id_category_default;
+            if ($default_category_id > 0 && !in_array($default_category_id, $category_ids, true)) {
+                array_unshift($category_ids, $default_category_id);
+                $debug['default_category_included'] = true;
+            } elseif ($default_category_id > 0) {
+                $debug['default_category_included'] = true;
+            }
+
+            $category_ids = array_values(array_unique(array_map('intval', $category_ids)));
             $debug['associated_category_ids'] = $category_ids;
 
             if (!empty($category_ids)) {
@@ -1224,8 +1290,8 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
                         [
                             'product_id' => $product->id,
                             'category_ids' => $category_ids,
-                            'created' => count($debug['created_categories']),
-                            'existing' => count($debug['existing_categories'])
+                            'resolved' => count($debug['resolved_categories']),
+                            'skipped' => count($debug['skipped_categories']),
                         ]
                     );
                 } else {
