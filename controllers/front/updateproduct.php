@@ -1293,21 +1293,18 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
         $segments_count = count($segments);
         $leaf_name = $segments[$segments_count - 1];
 
-        // Bottom-up strategy: find every active category whose name (in ANY
-        // language, trimmed and case-insensitive) matches the final segment,
-        // then for each candidate walk up the ancestor chain and verify that
-        // every previous segment matches the corresponding ancestor's name in
-        // any language. This is resilient to:
-        //   - multi-language shops where parent/child are named in different langs
-        //   - extra whitespace in cl.name
-        //   - root "Home" (or equivalent) living deeper than id_parent <= 2
-        //   - ambiguity when several categories share the same leaf name
-        $leaf_sql = 'SELECT DISTINCT c.id_category
-                     FROM ' . _DB_PREFIX_ . 'category c
-                     INNER JOIN ' . _DB_PREFIX_ . 'category_lang cl ON (c.id_category = cl.id_category)
-                     WHERE LOWER(TRIM(cl.name)) = "' . pSQL(Tools::strtolower(trim($leaf_name))) . '"
-                     AND c.active = 1';
-        $leaf_candidates = Db::getInstance()->executeS($leaf_sql) ?: [];
+        // Bottom-up strategy with PHP-side normalization:
+        //   1. Find every active category whose last-segment name matches the
+        //      expected leaf (SQL fast path first, then a permissive PHP-side
+        //      pass across all active category_lang rows that handles HTML
+        //      entities, non-breaking spaces, multiple whitespace and case).
+        //   2. For each candidate, walk the id_parent chain and check that
+        //      each previous segment matches one of that ancestor's translated
+        //      names (normalized in PHP, so "Health &amp; Beauty" stored in DB
+        //      matches "Health & Beauty" from the feed, NBSP matches plain
+        //      space, accents are preserved, etc.).
+        //   3. Prefer the shallowest match when several candidates validate.
+        $leaf_candidates = $this->findCategoriesWithName($leaf_name);
 
         if (empty($leaf_candidates)) {
             return [
@@ -1317,10 +1314,13 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
         }
 
         $matched_ids = [];
-        foreach ($leaf_candidates as $candidate) {
-            $candidate_id = (int) $candidate['id_category'];
-            if ($this->categoryPathMatchesAncestors($candidate_id, $segments)) {
+        $mismatch_samples = [];
+        foreach ($leaf_candidates as $candidate_id) {
+            $mismatch_reason = null;
+            if ($this->categoryPathMatchesAncestors($candidate_id, $segments, $mismatch_reason)) {
                 $matched_ids[] = $candidate_id;
+            } elseif (count($mismatch_samples) < 3) {
+                $mismatch_samples[] = '#' . $candidate_id . ' "' . $this->buildCategoryPathForDebug($candidate_id) . '" -> ' . $mismatch_reason;
             }
         }
 
@@ -1329,7 +1329,6 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
         }
 
         if (count($matched_ids) > 1) {
-            // Prefer the shallowest match (closest to the root) for stability.
             $best_id = $matched_ids[0];
             $best_depth = PHP_INT_MAX;
             foreach ($matched_ids as $mid) {
@@ -1344,52 +1343,139 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
             return ['id_category' => $best_id];
         }
 
-        // No full-path match: provide a diagnostic showing each leaf candidate's
-        // actual path so the caller can see why the lookup failed.
-        $samples = [];
-        foreach (array_slice($leaf_candidates, 0, 3) as $candidate) {
-            $cid = (int) $candidate['id_category'];
-            $samples[] = '#' . $cid . ' = "' . $this->buildCategoryPathForDebug($cid) . '"';
-        }
+        $count_word = count($leaf_candidates) === 1 ? 'category' : 'categories';
         return [
             'id_category' => false,
-            'debug' => 'leaf "' . $leaf_name . '" matched ' . count($leaf_candidates)
-                . ' categor' . (count($leaf_candidates) === 1 ? 'y' : 'ies')
-                . ' but none have ancestor path "' . $path . '". Actual paths: '
-                . implode(', ', $samples),
+            'debug' => 'leaf "' . $leaf_name . '" matched ' . count($leaf_candidates) . ' ' . $count_word
+                . ' but none have ancestor path "' . $path . '". Candidates: '
+                . implode(' | ', $mismatch_samples),
         ];
     }
 
-    private function categoryPathMatchesAncestors($id_category, array $expected_segments)
+    /**
+     * Normalize a category-name segment for comparison:
+     *   - decode HTML entities (so "Health &amp; Beauty" matches "Health & Beauty")
+     *   - replace unicode whitespace (NBSP, narrow no-break, etc.) with regular space
+     *   - collapse multiple whitespace
+     *   - trim
+     *   - lowercase (unicode-aware if mbstring is available)
+     */
+    private function normalizeCategoryName($s)
+    {
+        $s = (string) $s;
+        if ($s === '') {
+            return '';
+        }
+        $s = html_entity_decode($s, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        // Map common unicode whitespace to regular space (NBSP U+00A0,
+        // en/em spaces, narrow no-break, ideographic space, BOM, etc.).
+        $s = preg_replace(
+            '/[\x{00A0}\x{1680}\x{2000}-\x{200D}\x{2028}\x{2029}\x{202F}\x{205F}\x{3000}\x{FEFF}]/u',
+            ' ',
+            $s
+        );
+        $s = trim($s);
+        $s = preg_replace('/\s+/u', ' ', $s);
+        if (function_exists('mb_strtolower')) {
+            $s = mb_strtolower($s, 'UTF-8');
+        } else {
+            $s = Tools::strtolower($s);
+        }
+        return $s;
+    }
+
+    /**
+     * Return every active category id whose name (in ANY language / shop)
+     * normalizes to the given segment. Combines a SQL fast path with a
+     * PHP-side fallback that handles HTML entities and unicode whitespace
+     * which SQL's TRIM/LOWER cannot fully cover.
+     */
+    private function findCategoriesWithName($name)
+    {
+        $normalized = $this->normalizeCategoryName($name);
+        if ($normalized === '') {
+            return [];
+        }
+
+        // SQL fast path: broad filter that should catch the common case.
+        $fast_sql = 'SELECT DISTINCT c.id_category
+                     FROM ' . _DB_PREFIX_ . 'category c
+                     INNER JOIN ' . _DB_PREFIX_ . 'category_lang cl ON (c.id_category = cl.id_category)
+                     WHERE LOWER(TRIM(cl.name)) = "' . pSQL(Tools::strtolower(trim($name))) . '"
+                     AND c.active = 1';
+        $rows = Db::getInstance()->executeS($fast_sql) ?: [];
+        $ids = [];
+        foreach ($rows as $r) {
+            $ids[(int) $r['id_category']] = true;
+        }
+
+        // PHP-side fallback: scan all active category_lang rows with a
+        // permissive normalization. This catches names stored with HTML
+        // entities (e.g. "Health &amp; Beauty") or unicode whitespace
+        // (NBSP, etc.) that SQL TRIM/LOWER cannot normalize away.
+        $all = Db::getInstance()->executeS(
+            'SELECT DISTINCT c.id_category, cl.name
+             FROM ' . _DB_PREFIX_ . 'category c
+             INNER JOIN ' . _DB_PREFIX_ . 'category_lang cl ON (c.id_category = cl.id_category)
+             WHERE c.active = 1'
+        ) ?: [];
+        foreach ($all as $r) {
+            if ($this->normalizeCategoryName($r['name']) === $normalized) {
+                $ids[(int) $r['id_category']] = true;
+            }
+        }
+        return array_map('intval', array_keys($ids));
+    }
+
+    private function categoryPathMatchesAncestors($id_category, array $expected_segments, &$mismatch_reason = null)
     {
         $current_id = (int) $id_category;
         for ($i = count($expected_segments) - 1; $i >= 0; $i--) {
             if ($current_id <= 0) {
+                $mismatch_reason = 'reached id=0 before matching segment "' . $expected_segments[$i] . '"';
                 return false;
             }
-            $expected = Tools::strtolower(trim($expected_segments[$i]));
-            if (!$this->categoryHasNameInAnyLang($current_id, $expected)) {
+
+            $names = Db::getInstance()->executeS(
+                'SELECT name FROM ' . _DB_PREFIX_ . 'category_lang
+                 WHERE id_category = ' . (int) $current_id
+            ) ?: [];
+
+            $expected_norm = $this->normalizeCategoryName($expected_segments[$i]);
+            $found_names = [];
+            $matched = false;
+            foreach ($names as $row) {
+                $found_names[] = $row['name'];
+                if ($this->normalizeCategoryName($row['name']) === $expected_norm) {
+                    $matched = true;
+                    break;
+                }
+            }
+
+            if (!$matched) {
+                $unique = array_values(array_unique($found_names));
+                $shown = array_slice($unique, 0, 4);
+                $mismatch_reason = 'category id=' . $current_id . ' does not translate to "'
+                    . $expected_segments[$i] . '" (found: '
+                    . (empty($shown) ? '<no translations>' : '"' . implode('", "', $shown) . '"')
+                    . (count($unique) > count($shown) ? ', ...' : '')
+                    . ')';
                 return false;
             }
+
             $parent_id = (int) Db::getInstance()->getValue(
                 'SELECT id_parent FROM ' . _DB_PREFIX_ . 'category WHERE id_category = ' . (int) $current_id
             );
             if ($parent_id === $current_id) {
-                // Safety: stop on self-parent loops.
-                return $i === 0;
+                if ($i === 0) {
+                    return true;
+                }
+                $mismatch_reason = 'category id=' . $current_id . ' self-parented at segment index ' . $i;
+                return false;
             }
             $current_id = $parent_id;
         }
         return true;
-    }
-
-    private function categoryHasNameInAnyLang($id_category, $lowercased_trimmed_name)
-    {
-        $sql = 'SELECT 1 FROM ' . _DB_PREFIX_ . 'category_lang cl
-                WHERE cl.id_category = ' . (int) $id_category . '
-                AND LOWER(TRIM(cl.name)) = "' . pSQL($lowercased_trimmed_name) . '"
-                LIMIT 1';
-        return (bool) Db::getInstance()->getValue($sql);
     }
 
     private function buildCategoryPathForDebug($id_category)
@@ -1421,19 +1507,32 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
 
     private function findCategoryByName($category_name)
     {
-        // Look up an existing category by name across all languages. Returns the
-        // category id if found, false otherwise. Used by handleCategoryUpdate to
-        // resolve plain-name inputs without ever creating new categories.
-        $sql = 'SELECT c.id_category
-                FROM ' . _DB_PREFIX_ . 'category c
-                INNER JOIN ' . _DB_PREFIX_ . 'category_lang cl ON (c.id_category = cl.id_category)
-                WHERE LOWER(cl.name) = "' . pSQL(Tools::strtolower($category_name)) . '"
-                AND c.active = 1
-                LIMIT 1';
-
-        $existing_id = Db::getInstance()->getValue($sql);
-
-        return $existing_id ? (int) $existing_id : false;
+        // Look up an existing category by name across all languages. Returns
+        // the category id if found, false otherwise. Uses the same robust
+        // PHP-side normalization as findCategoryByPath so HTML entities,
+        // NBSP/unicode whitespace and case variants are all handled. Never
+        // creates a new category.
+        $candidates = $this->findCategoriesWithName($category_name);
+        if (empty($candidates)) {
+            return false;
+        }
+        if (count($candidates) === 1) {
+            return $candidates[0];
+        }
+        // Multiple categories share this name: prefer the shallowest for
+        // stability.
+        $best_id = $candidates[0];
+        $best_depth = PHP_INT_MAX;
+        foreach ($candidates as $cid) {
+            $depth = (int) Db::getInstance()->getValue(
+                'SELECT level_depth FROM ' . _DB_PREFIX_ . 'category WHERE id_category = ' . (int) $cid
+            );
+            if ($depth < $best_depth) {
+                $best_depth = $depth;
+                $best_id = $cid;
+            }
+        }
+        return $best_id;
     }
 
     private function clearProductCategories($id_product)
