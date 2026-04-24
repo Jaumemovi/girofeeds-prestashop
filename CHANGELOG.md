@@ -1,5 +1,10 @@
 # Changelog
 
+### 3.3.21
+- **`/updateproduct` ignora ahora el array `categories`**: el campo se considera de solo lectura y no se procesa aunque venga en el payload. La asignación de categorías sigue disponible únicamente a través del campo singular `category` (id, nombre o path `Cat > Subcat`).
+- **`category` por nombre simple no crea categorías nuevas**: cuando el valor es un nombre plano (sin ` > `), se resuelve contra una categoría existente (búsqueda case-insensitive en `category_lang`). Si no existe, se devuelve error en lugar de crearla automáticamente.
+- **`findCategoryByPath` multilenguaje**: la resolución de paths `Home > Cleansers` ya no filtra por `PS_LANG_DEFAULT`, de modo que encuentra la categoría aunque el idioma de la tienda difiera del idioma usado en el feed. Usa `INNER JOIN` + `DISTINCT` sobre `category_lang` para cubrir todas las traducciones.
+
 ### 3.3.20
 - **Multi-select order statuses for orders count**: the `GIROFEEDS_ORDERS_COUNT_STATUS` setting now accepts multiple order states. Order-count fields in the feed (`orders_1d`, `orders_7d`, `orders_30d`, `orders_90d`, `orders_365d`) aggregate orders across all selected statuses instead of a single one.
 - Configuration form field upgraded to a multi-select (`chosen` class) and placeholder entry removed.
