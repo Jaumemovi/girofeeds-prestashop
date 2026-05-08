@@ -1,5 +1,40 @@
 # Changelog
 
+### 3.3.24
+- **`/updateproduct` now processes the `categories` array**: the associated-categories field, previously ignored as read-only, is now handled with the same resolution strategy as the main `category` field. Each entry can be a numeric category id, a plain category name (resolved case-insensitively across all languages via `findCategoryByName`) or a full path like `Home > Electronics > Phones` (resolved bottom-up via `findCategoryByPath`). Categories are **never** created on the fly — unknown entries are reported as errors, consistent with v3.3.21+ behaviour for the singular `category`.
+- **Main category always preserved in associated categories**: `id_category_default` is guaranteed to be present in the associated categories list. If it is missing from the incoming `categories` payload, it is prepended automatically. The main-category id is deduplicated so it is not inserted twice when already provided in the payload (as a numeric id or as a path resolving to the same category).
+- **Deterministic processing order**: when the payload contains both `category` and `categories`, `category` is now processed first so that `id_category_default` is up-to-date when building the associated list.
+- **Richer debug response**: `categories_debug` now exposes `resolved_categories` (input, resolved id, matched_by: `id` / `name` / `path`), `skipped_categories` with per-entry reason, `associated_category_ids` and `default_category_included`.
+
+### 3.3.23
+- **Fixed category path lookup failing even when the reconstructed path matched the expected path**: the previous SQL-only `LOWER(TRIM(...))` comparison could not normalize HTML entities (e.g. `Health &amp; Beauty` stored in DB vs. `Health & Beauty` sent in the feed) nor unicode whitespace (NBSP `\xC2\xA0`, narrow no-break space, etc.). Both comparisons now go through a new `normalizeCategoryName()` helper that decodes HTML entities, maps unicode whitespace to regular spaces, collapses repeated whitespace, trims and lowercases (unicode-aware via `mb_strtolower`). This fixes the case where `Home > Limpiadores Faciales` or `Home > Health & Beauty > Personal Care > Cosmetics` failed to resolve even though the reconstructed actual path was identical.
+- **New `findCategoriesWithName()` helper**: combines a SQL fast path with a PHP-side pass across all active `category_lang` rows so that a match is found whenever at least one translation normalizes to the requested name.
+- **`categoryPathMatchesAncestors()` now fetches all translations** for each ancestor and compares them in PHP with `normalizeCategoryName()`. When the match fails it produces a granular diagnostic: the offending ancestor id, the expected segment and the list of actual translations found for that category (first 4).
+- **Error message now reports per-candidate mismatch reason** instead of just the reconstructed path, e.g. `leaf "Cosmetics" matched 1 category but none have ancestor path "…". Candidates: #23 "Home > Health & Beauty > Personal Care > Cosmetics" -> category id=N does not translate to "Health & Beauty" (found: "Health &amp; Beauty")`. This makes HTML-entity and whitespace mismatches obvious at a glance.
+- **`findCategoryByName()` now delegates to the same normalized lookup**, so plain-name values match existing categories with the same robustness. When several candidates share the name, the shallowest (smallest `level_depth`) wins for stability.
+
+### 3.3.22
+- **Rewrote `findCategoryByPath` in bottom-up mode**: first finds every active category whose **last segment** (leaf) matches in any language, then for each candidate walks up the ancestor chain checking that each previous segment matches the corresponding parent category's name (also in any language). Correctly resolves paths like `Home > Limpiadores Faciales` even when the segments are in different languages or the visible root is not directly under `id_parent <= 2`.
+- **Whitespace-tolerant comparison**: `LOWER(TRIM(...))` is applied both in SQL and PHP to avoid failures caused by trailing/leading spaces in category names.
+- **Diagnostic error message**: when the path cannot be found, the error includes the number of candidates with that leaf name and the reconstructed actual path of the first 3 matches, so you can see why it failed (leaf does not exist, or exists but under a different ancestor).
+- **Tie-break between multiple candidates**: if several categories match the full path, the one with the smallest `level_depth` (closest to the root) is preferred for stability.
+
+### 3.3.21
+- **`/updateproduct` now ignores the `categories` array**: the field is considered read-only and is not processed even if it appears in the payload. Category assignment is only available through the singular `category` field (id, name, or path `Cat > Subcat`).
+- **Plain-name `category` no longer creates new categories**: when the value is a plain name (without ` > `), it is resolved against an existing category (case-insensitive lookup in `category_lang`). If it does not exist, the endpoint returns an error instead of auto-creating it.
+- **Multi-language `findCategoryByPath`**: path resolution (e.g. `Home > Cleansers`) no longer filters by `PS_LANG_DEFAULT`, so it finds the category even when the store's default language differs from the language used in the feed. Uses `INNER JOIN` + `DISTINCT` on `category_lang` to cover all translations.
+
+### 3.3.20
+- **Multi-select order statuses for orders count**: the `GIROFEEDS_ORDERS_COUNT_STATUS` setting now accepts multiple order states. Order-count fields in the feed (`orders_1d`, `orders_7d`, `orders_30d`, `orders_90d`, `orders_365d`) aggregate orders across all selected statuses instead of a single one.
+- Configuration form field upgraded to a multi-select (`chosen` class) and placeholder entry removed.
+- Selection is stored as a CSV of integer IDs — backward-compatible with previous single-ID values (a single ID is still a valid CSV of one element).
+- Feed SQL in `controllers/front/feed.php` (`fetchProductOrdersCounts`, `fetchBatchProductOrdersCounts`) now uses `AND o.current_state IN (...)` instead of an equality match. New helper `getConfiguredOrderStatusIds()` parses and sanitizes the stored value to `array<int>`.
+### 3.3.19
+- **Renamed `product_category` to `category`** in both `/feed` and `/attributes` for consistency with the `category` field already accepted by `/updateproduct`
+- **Added `path` to each category in `/attributes`**: full tree path (`"Cat > Subcat > Subcat2"`) computed from the parent chain, ready to be used as a human-readable reference value
+- **New `reference` data type in `/attributes`**: the `category` and `brand` fields are now declared with `type: 'reference'` and `referenceTo: 'categories'` / `'manufacturers'` so consumers can render a proper picker instead of a free-text input
+- **`/updateproduct` accepts category paths**: when the `category` field arrives as a string containing ` > `, the endpoint walks the tree segment by segment from the root to resolve the exact category (avoids ambiguity when multiple categories share the same leaf name). Numeric ids and single-segment names keep working as before
+
 ### 3.3.18
 - **Fixed product feature updates via `/updateproduct`**: features exposed in the feed as top-level fields (lowercased feature name, e.g. `ads_label_0`) were silently ignored by the update endpoint, returning `No valid fields to update`
 - Added fallback in `updateproduct.php` that matches unknown field names case-insensitively against existing PrestaShop features and routes them to the feature-assignment logic (reuses `findOrCreateFeatureValue` + `feature_product` insert)

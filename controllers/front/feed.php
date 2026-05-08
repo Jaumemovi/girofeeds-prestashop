@@ -237,7 +237,7 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
                     }
                     $treeCache = GirofeedsCache::getByKey('CAT_TREE_' . $row['id_category_default'], self::$cache_lifetime_categories, true, (int) $this->context->language->id);
                     if ((int) $treeCache->id > 0) {
-                        $row['product_category'] = $treeCache->cache_value;
+                        $row['category'] = $treeCache->cache_value;
                     } else {
                         $defaultTree = $this->getParentsCategories($row['id_category_default'], $this->getAllCategories());
                         $tmp = [];
@@ -246,7 +246,7 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
                         }
                         $treeCache->cache_value = join(' > ', $tmp);
                         $treeCache->save();
-                        $row['product_category'] = join(' > ', $tmp);
+                        $row['category'] = join(' > ', $tmp);
                     }
 
                     $productCategoriesCache = GirofeedsCache::getByKey('PROD_CATS_' . $row['parent_id'], self::$cache_lifetime_categories, true, (int) $this->context->language->id);
@@ -832,7 +832,7 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
     {
         if (Configuration::get('GIROFEEDS_FEEDMODE_ALTERNATIVE') != 1) {
             return 'GROUP_CONCAT(DISTINCT cpl2.id_category SEPARATOR \',\') as categories_ids,
-                    cpl.name as product_category, ';
+                    cpl.name as category, ';
         }
 
         return '';
@@ -1492,11 +1492,23 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
         return $ordersFields;
     }
 
+    protected function getConfiguredOrderStatusIds()
+    {
+        $raw = Configuration::get('GIROFEEDS_ORDERS_COUNT_STATUS');
+        if ($raw === false || $raw === null || $raw === '') {
+            return [];
+        }
+        $ids = array_values(array_filter(array_map('intval', explode(',', (string) $raw)), function ($v) {
+            return $v > 0;
+        }));
+        return array_values(array_unique($ids));
+    }
+
     protected function fetchProductOrdersCounts($id_product)
     {
-        $orderStatusId = (int) Configuration::get('GIROFEEDS_ORDERS_COUNT_STATUS');
+        $orderStatusIds = $this->getConfiguredOrderStatusIds();
 
-        if ($orderStatusId <= 0) {
+        if (empty($orderStatusIds)) {
             return [
                 'orders_1d' => 0,
                 'orders_7d' => 0,
@@ -1513,6 +1525,8 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
         $date_90d = date('Y-m-d H:i:s', strtotime('-90 days'));
         $date_365d = date('Y-m-d H:i:s', strtotime('-365 days'));
 
+        $statusList = implode(',', array_map('intval', $orderStatusIds));
+
         $sql = 'SELECT
             SUM(CASE WHEN o.date_add >= "' . pSQL($date_1d) . '" THEN od.product_quantity ELSE 0 END) as orders_1d,
             SUM(CASE WHEN o.date_add >= "' . pSQL($date_7d) . '" THEN od.product_quantity ELSE 0 END) as orders_7d,
@@ -1522,7 +1536,7 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
         FROM ' . _DB_PREFIX_ . 'order_detail od
         INNER JOIN ' . _DB_PREFIX_ . 'orders o ON (od.id_order = o.id_order)
         WHERE od.product_id = ' . (int) $id_product . '
-        AND o.current_state = ' . (int) $orderStatusId . '
+        AND o.current_state IN (' . $statusList . ')
         AND o.id_shop = ' . (int) $id_shop;
 
         $result = Db::getInstance(_PS_USE_SQL_SLAVE_)->getRow($sql);
@@ -1538,9 +1552,9 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
 
     protected function fetchBatchProductOrdersCounts(array $productIds)
     {
-        $orderStatusId = (int) Configuration::get('GIROFEEDS_ORDERS_COUNT_STATUS');
+        $orderStatusIds = $this->getConfiguredOrderStatusIds();
 
-        if ($orderStatusId <= 0 || empty($productIds)) {
+        if (empty($orderStatusIds) || empty($productIds)) {
             return [];
         }
 
@@ -1552,6 +1566,7 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
         $date_365d = date('Y-m-d H:i:s', strtotime('-365 days'));
 
         $idsString = implode(',', array_map('intval', $productIds));
+        $statusList = implode(',', array_map('intval', $orderStatusIds));
 
         $sql = 'SELECT od.product_id,
             SUM(CASE WHEN o.date_add >= "' . pSQL($date_1d) . '" THEN od.product_quantity ELSE 0 END) as orders_1d,
@@ -1562,7 +1577,7 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
         FROM ' . _DB_PREFIX_ . 'order_detail od
         INNER JOIN ' . _DB_PREFIX_ . 'orders o ON (od.id_order = o.id_order)
         WHERE od.product_id IN (' . $idsString . ')
-        AND o.current_state = ' . (int) $orderStatusId . '
+        AND o.current_state IN (' . $statusList . ')
         AND o.id_shop = ' . (int) $id_shop . '
         GROUP BY od.product_id';
 

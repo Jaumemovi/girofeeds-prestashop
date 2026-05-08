@@ -113,6 +113,7 @@ class GirofeedsAttributesModuleFrontController extends ModuleFrontController
             'isMultilingual' => false,
             'isRelation' => false,
             'relatedEntity' => null,
+            'referenceTo' => null,
             'isArray' => false,
             'possibleValues' => null,
             'isRequired' => false,
@@ -162,12 +163,6 @@ class GirofeedsAttributesModuleFrontController extends ModuleFrontController
             'category' => 'content',
             'isReadOnly' => true,
             'description' => 'Product URL in the store'
-        ]);
-        $fields[] = $this->buildField('product_category', [
-            'table' => 'virtual',
-            'category' => 'relations',
-            'isReadOnly' => true,
-            'description' => 'Default category tree path (e.g. "Home > Clothes > Men")'
         ]);
         $fields[] = $this->buildField('product_supplier_reference', [
             'table' => 'virtual',
@@ -588,11 +583,13 @@ class GirofeedsAttributesModuleFrontController extends ModuleFrontController
 
         // --- Virtual/special fields (updatable via updateproduct endpoint) ---
         $fields[] = $this->buildField('category', [
+            'type' => 'reference',
             'table' => 'virtual',
             'isRelation' => true,
             'relatedEntity' => 'category',
+            'referenceTo' => 'categories',
             'category' => 'relations',
-            'description' => 'Main category name or ID (sets id_category_default). Auto-creates if not found.'
+            'description' => 'Default category path (e.g. "Home > Clothes > Men"). Reference to categories (by id or path).'
         ]);
         $fields[] = $this->buildField('categories', [
             'table' => 'virtual',
@@ -604,11 +601,13 @@ class GirofeedsAttributesModuleFrontController extends ModuleFrontController
             'description' => 'Array of category names. Replaces all category associations. Auto-creates if not found.'
         ]);
         $fields[] = $this->buildField('brand', [
+            'type' => 'reference',
             'table' => 'virtual',
             'isRelation' => true,
             'relatedEntity' => 'manufacturer',
+            'referenceTo' => 'manufacturers',
             'category' => 'relations',
-            'description' => 'Manufacturer/brand name or ID. Auto-creates if not found.'
+            'description' => 'Manufacturer/brand name or ID. Reference to manufacturers. Auto-creates if not found.'
         ]);
         $fields[] = $this->buildField('supplier', [
             'table' => 'virtual',
@@ -894,19 +893,44 @@ class GirofeedsAttributesModuleFrontController extends ModuleFrontController
                       AND cl.id_shop = ' . (int) $id_shop . ')
                 WHERE c.active = 1
                 ORDER BY c.level_depth ASC, c.position ASC';
-        $categories = Db::getInstance()->executeS($sql);
+        $categories = Db::getInstance()->executeS($sql) ?: [];
 
-        return array_map(function ($c) {
-            return [
+        $byId = [];
+        foreach ($categories as $c) {
+            $byId[(int) $c['id_category']] = $c;
+        }
+
+        $buildPath = function ($id) use (&$byId, &$buildPath) {
+            $segments = [];
+            $currentId = (int) $id;
+            $guard = 0;
+            while ($currentId > 1 && isset($byId[$currentId]) && $guard < 50) {
+                $node = $byId[$currentId];
+                array_unshift($segments, $node['name']);
+                $parentId = (int) $node['id_parent'];
+                if ($parentId === $currentId) {
+                    break;
+                }
+                $currentId = $parentId;
+                $guard++;
+            }
+            return implode(' > ', $segments);
+        };
+
+        $result = [];
+        foreach ($categories as $c) {
+            $result[] = [
                 'id' => (int) $c['id_category'],
                 'parentId' => (int) $c['id_parent'],
                 'depth' => (int) $c['level_depth'],
                 'active' => (bool) $c['active'],
                 'position' => (int) $c['position'],
                 'name' => $c['name'],
+                'path' => $buildPath((int) $c['id_category']),
                 'slug' => $c['link_rewrite']
             ];
-        }, $categories ?: []);
+        }
+        return $result;
     }
 
     private function getTaxRulesGroups()

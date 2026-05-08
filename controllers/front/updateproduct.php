@@ -151,6 +151,21 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
 
         $id_product_attribute = isset($data['id_product_attribute']) ? (int) $data['id_product_attribute'] : 0;
 
+        // Ensure 'category' is processed before 'categories' so that
+        // id_category_default is up-to-date when building the list of
+        // associated categories (the main category must always be present
+        // in the associated categories).
+        if (array_key_exists('category', $data) && array_key_exists('categories', $data)) {
+            $ordered = ['category' => $data['category']];
+            foreach ($data as $k => $v) {
+                if ($k === 'category') {
+                    continue;
+                }
+                $ordered[$k] = $v;
+            }
+            $data = $ordered;
+        }
+
         foreach ($data as $field_name => $value) {
             if ($field_name === 'id_product' || $field_name === 'id_product_attribute') {
                 continue;
@@ -1079,16 +1094,34 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
             } elseif (is_string($category_data)) {
                 $category_name = trim($category_data);
                 if (!empty($category_name)) {
-                    $result = $this->findOrCreateCategoryByName($category_name);
-                    if ($result['id_category']) {
-                        $product->id_category_default = $result['id_category'];
-                        $debug['final_category_id'] = $result['id_category'];
-                        $debug['final_category_name'] = $category_name;
-                        $debug['created'] = $result['created'];
-                        $debug['existing'] = !$result['created'];
-                        $updated_fields[] = ['field' => 'id_category_default', 'value' => $result['id_category']];
+                    if (strpos($category_name, ' > ') !== false) {
+                        $path_result = $this->findCategoryByPath($category_name);
+                        if ($path_result['id_category']) {
+                            $product->id_category_default = $path_result['id_category'];
+                            $debug['final_category_id'] = $path_result['id_category'];
+                            $debug['final_category_name'] = $category_name;
+                            $debug['existing'] = true;
+                            $debug['matched_by'] = 'path';
+                            $updated_fields[] = ['field' => 'id_category_default', 'value' => $path_result['id_category']];
+                        } else {
+                            $diagnostic = isset($path_result['debug']) ? ' (' . $path_result['debug'] . ')' : '';
+                            $errors[] = "Failed to find existing category by path: {$category_name}{$diagnostic}";
+                        }
                     } else {
-                        $errors[] = "Failed to create or find category: {$category_name}";
+                        // Plain name: look up an existing category only. We no longer
+                        // create categories on the fly; the Girofeeds UI only allows
+                        // selecting existing categories.
+                        $id_category = $this->findCategoryByName($category_name);
+                        if ($id_category) {
+                            $product->id_category_default = (int) $id_category;
+                            $debug['final_category_id'] = (int) $id_category;
+                            $debug['final_category_name'] = $category_name;
+                            $debug['existing'] = true;
+                            $debug['matched_by'] = 'name';
+                            $updated_fields[] = ['field' => 'id_category_default', 'value' => (int) $id_category];
+                        } else {
+                            $errors[] = "Failed to find existing category by name: {$category_name}";
+                        }
                     }
                 } else {
                     $errors[] = "Category name cannot be empty";
@@ -1127,11 +1160,11 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
         $errors = [];
         $debug = [
             'input' => $categories_data,
-            'created_categories' => [],
-            'existing_categories' => [],
+            'resolved_categories' => [],
             'associated_category_ids' => [],
             'previous_categories' => [],
-            'skipped_categories' => []
+            'skipped_categories' => [],
+            'default_category_included' => false,
         ];
 
         try {
@@ -1149,54 +1182,94 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
 
             $category_ids = [];
 
-            if ($product->id_category_default) {
-                $category_ids[] = (int) $product->id_category_default;
-            }
-
-            foreach ($categories_data as $category_name) {
-                if (empty($category_name) || !is_string($category_name)) {
-                    $debug['skipped_categories'][] = [
-                        'value' => $category_name,
-                        'reason' => 'Empty or not a string'
-                    ];
-                    continue;
-                }
-
-                $category_name = trim($category_name);
-                if (empty($category_name)) {
-                    $debug['skipped_categories'][] = [
-                        'value' => $category_name,
-                        'reason' => 'Empty after trim'
-                    ];
-                    continue;
-                }
-
-                $result = $this->findOrCreateCategoryByName($category_name);
-
-                if ($result['id_category']) {
-                    $category_ids[] = (int) $result['id_category'];
-
-                    if ($result['created']) {
-                        $debug['created_categories'][] = [
-                            'id' => $result['id_category'],
-                            'name' => $category_name
+            foreach ($categories_data as $category_value) {
+                if (is_numeric($category_value)) {
+                    $id_category = (int) $category_value;
+                    if ($this->categoryExists($id_category)) {
+                        $category_ids[] = $id_category;
+                        $debug['resolved_categories'][] = [
+                            'input' => $category_value,
+                            'id' => $id_category,
+                            'matched_by' => 'id',
                         ];
                     } else {
-                        $debug['existing_categories'][] = [
-                            'id' => $result['id_category'],
-                            'name' => $category_name
+                        $debug['skipped_categories'][] = [
+                            'value' => $category_value,
+                            'reason' => "Category with ID {$id_category} does not exist",
+                        ];
+                    }
+                    continue;
+                }
+
+                if (!is_string($category_value)) {
+                    $debug['skipped_categories'][] = [
+                        'value' => $category_value,
+                        'reason' => 'Not a string or numeric id',
+                    ];
+                    continue;
+                }
+
+                $category_name = trim($category_value);
+                if ($category_name === '') {
+                    $debug['skipped_categories'][] = [
+                        'value' => $category_value,
+                        'reason' => 'Empty after trim',
+                    ];
+                    continue;
+                }
+
+                // Same resolution strategy as handleCategoryUpdate: if the
+                // value contains the ' > ' separator treat it as a category
+                // path and resolve it bottom-up; otherwise look up by plain
+                // name across all languages. Never create categories on the
+                // fly — the Girofeeds UI only exposes existing categories.
+                if (strpos($category_name, ' > ') !== false) {
+                    $path_result = $this->findCategoryByPath($category_name);
+                    if ($path_result['id_category']) {
+                        $category_ids[] = (int) $path_result['id_category'];
+                        $debug['resolved_categories'][] = [
+                            'input' => $category_name,
+                            'id' => (int) $path_result['id_category'],
+                            'matched_by' => 'path',
+                        ];
+                    } else {
+                        $diagnostic = isset($path_result['debug']) ? ' (' . $path_result['debug'] . ')' : '';
+                        $errors[] = "Failed to find existing category by path: {$category_name}{$diagnostic}";
+                        $debug['skipped_categories'][] = [
+                            'value' => $category_name,
+                            'reason' => 'Path not found' . $diagnostic,
                         ];
                     }
                 } else {
-                    $errors[] = "Failed to find or create category: {$category_name}";
-                    $debug['skipped_categories'][] = [
-                        'value' => $category_name,
-                        'reason' => 'Failed to find or create'
-                    ];
+                    $id_category = $this->findCategoryByName($category_name);
+                    if ($id_category) {
+                        $category_ids[] = (int) $id_category;
+                        $debug['resolved_categories'][] = [
+                            'input' => $category_name,
+                            'id' => (int) $id_category,
+                            'matched_by' => 'name',
+                        ];
+                    } else {
+                        $errors[] = "Failed to find existing category by name: {$category_name}";
+                        $debug['skipped_categories'][] = [
+                            'value' => $category_name,
+                            'reason' => 'Name not found',
+                        ];
+                    }
                 }
             }
 
-            $category_ids = array_unique($category_ids);
+            // The main category (id_category_default) must always be present
+            // in the associated categories list. Add it if it is missing.
+            $default_category_id = (int) $product->id_category_default;
+            if ($default_category_id > 0 && !in_array($default_category_id, $category_ids, true)) {
+                array_unshift($category_ids, $default_category_id);
+                $debug['default_category_included'] = true;
+            } elseif ($default_category_id > 0) {
+                $debug['default_category_included'] = true;
+            }
+
+            $category_ids = array_values(array_unique(array_map('intval', $category_ids)));
             $debug['associated_category_ids'] = $category_ids;
 
             if (!empty($category_ids)) {
@@ -1217,8 +1290,8 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
                         [
                             'product_id' => $product->id,
                             'category_ids' => $category_ids,
-                            'created' => count($debug['created_categories']),
-                            'existing' => count($debug['existing_categories'])
+                            'resolved' => count($debug['resolved_categories']),
+                            'skipped' => count($debug['skipped_categories']),
                         ]
                     );
                 } else {
@@ -1270,6 +1343,262 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
 
         $new_id = $this->createCategory($category_name, 2);
         return ['id_category' => $new_id, 'created' => ($new_id !== false)];
+    }
+
+    private function findCategoryByPath($path)
+    {
+        $segments = array_map('trim', explode(' > ', $path));
+        $segments = array_values(array_filter($segments, function ($s) {
+            return $s !== '';
+        }));
+
+        if (empty($segments)) {
+            return ['id_category' => false, 'debug' => 'empty path'];
+        }
+
+        $segments_count = count($segments);
+        $leaf_name = $segments[$segments_count - 1];
+
+        // Bottom-up strategy with PHP-side normalization:
+        //   1. Find every active category whose last-segment name matches the
+        //      expected leaf (SQL fast path first, then a permissive PHP-side
+        //      pass across all active category_lang rows that handles HTML
+        //      entities, non-breaking spaces, multiple whitespace and case).
+        //   2. For each candidate, walk the id_parent chain and check that
+        //      each previous segment matches one of that ancestor's translated
+        //      names (normalized in PHP, so "Health &amp; Beauty" stored in DB
+        //      matches "Health & Beauty" from the feed, NBSP matches plain
+        //      space, accents are preserved, etc.).
+        //   3. Prefer the shallowest match when several candidates validate.
+        $leaf_candidates = $this->findCategoriesWithName($leaf_name);
+
+        if (empty($leaf_candidates)) {
+            return [
+                'id_category' => false,
+                'debug' => 'leaf segment "' . $leaf_name . '" not found in any language',
+            ];
+        }
+
+        $matched_ids = [];
+        $mismatch_samples = [];
+        foreach ($leaf_candidates as $candidate_id) {
+            $mismatch_reason = null;
+            if ($this->categoryPathMatchesAncestors($candidate_id, $segments, $mismatch_reason)) {
+                $matched_ids[] = $candidate_id;
+            } elseif (count($mismatch_samples) < 3) {
+                $mismatch_samples[] = '#' . $candidate_id . ' "' . $this->buildCategoryPathForDebug($candidate_id) . '" -> ' . $mismatch_reason;
+            }
+        }
+
+        if (count($matched_ids) === 1) {
+            return ['id_category' => $matched_ids[0]];
+        }
+
+        if (count($matched_ids) > 1) {
+            $best_id = $matched_ids[0];
+            $best_depth = PHP_INT_MAX;
+            foreach ($matched_ids as $mid) {
+                $depth = (int) Db::getInstance()->getValue(
+                    'SELECT level_depth FROM ' . _DB_PREFIX_ . 'category WHERE id_category = ' . (int) $mid
+                );
+                if ($depth < $best_depth) {
+                    $best_depth = $depth;
+                    $best_id = $mid;
+                }
+            }
+            return ['id_category' => $best_id];
+        }
+
+        $count_word = count($leaf_candidates) === 1 ? 'category' : 'categories';
+        return [
+            'id_category' => false,
+            'debug' => 'leaf "' . $leaf_name . '" matched ' . count($leaf_candidates) . ' ' . $count_word
+                . ' but none have ancestor path "' . $path . '". Candidates: '
+                . implode(' | ', $mismatch_samples),
+        ];
+    }
+
+    /**
+     * Normalize a category-name segment for comparison:
+     *   - decode HTML entities (so "Health &amp; Beauty" matches "Health & Beauty")
+     *   - replace unicode whitespace (NBSP, narrow no-break, etc.) with regular space
+     *   - collapse multiple whitespace
+     *   - trim
+     *   - lowercase (unicode-aware if mbstring is available)
+     */
+    private function normalizeCategoryName($s)
+    {
+        $s = (string) $s;
+        if ($s === '') {
+            return '';
+        }
+        $s = html_entity_decode($s, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        // Map common unicode whitespace to regular space (NBSP U+00A0,
+        // en/em spaces, narrow no-break, ideographic space, BOM, etc.).
+        $s = preg_replace(
+            '/[\x{00A0}\x{1680}\x{2000}-\x{200D}\x{2028}\x{2029}\x{202F}\x{205F}\x{3000}\x{FEFF}]/u',
+            ' ',
+            $s
+        );
+        $s = trim($s);
+        $s = preg_replace('/\s+/u', ' ', $s);
+        if (function_exists('mb_strtolower')) {
+            $s = mb_strtolower($s, 'UTF-8');
+        } else {
+            $s = Tools::strtolower($s);
+        }
+        return $s;
+    }
+
+    /**
+     * Return every active category id whose name (in ANY language / shop)
+     * normalizes to the given segment. Combines a SQL fast path with a
+     * PHP-side fallback that handles HTML entities and unicode whitespace
+     * which SQL's TRIM/LOWER cannot fully cover.
+     */
+    private function findCategoriesWithName($name)
+    {
+        $normalized = $this->normalizeCategoryName($name);
+        if ($normalized === '') {
+            return [];
+        }
+
+        // SQL fast path: broad filter that should catch the common case.
+        $fast_sql = 'SELECT DISTINCT c.id_category
+                     FROM ' . _DB_PREFIX_ . 'category c
+                     INNER JOIN ' . _DB_PREFIX_ . 'category_lang cl ON (c.id_category = cl.id_category)
+                     WHERE LOWER(TRIM(cl.name)) = "' . pSQL(Tools::strtolower(trim($name))) . '"
+                     AND c.active = 1';
+        $rows = Db::getInstance()->executeS($fast_sql) ?: [];
+        $ids = [];
+        foreach ($rows as $r) {
+            $ids[(int) $r['id_category']] = true;
+        }
+
+        // PHP-side fallback: scan all active category_lang rows with a
+        // permissive normalization. This catches names stored with HTML
+        // entities (e.g. "Health &amp; Beauty") or unicode whitespace
+        // (NBSP, etc.) that SQL TRIM/LOWER cannot normalize away.
+        $all = Db::getInstance()->executeS(
+            'SELECT DISTINCT c.id_category, cl.name
+             FROM ' . _DB_PREFIX_ . 'category c
+             INNER JOIN ' . _DB_PREFIX_ . 'category_lang cl ON (c.id_category = cl.id_category)
+             WHERE c.active = 1'
+        ) ?: [];
+        foreach ($all as $r) {
+            if ($this->normalizeCategoryName($r['name']) === $normalized) {
+                $ids[(int) $r['id_category']] = true;
+            }
+        }
+        return array_map('intval', array_keys($ids));
+    }
+
+    private function categoryPathMatchesAncestors($id_category, array $expected_segments, &$mismatch_reason = null)
+    {
+        $current_id = (int) $id_category;
+        for ($i = count($expected_segments) - 1; $i >= 0; $i--) {
+            if ($current_id <= 0) {
+                $mismatch_reason = 'reached id=0 before matching segment "' . $expected_segments[$i] . '"';
+                return false;
+            }
+
+            $names = Db::getInstance()->executeS(
+                'SELECT name FROM ' . _DB_PREFIX_ . 'category_lang
+                 WHERE id_category = ' . (int) $current_id
+            ) ?: [];
+
+            $expected_norm = $this->normalizeCategoryName($expected_segments[$i]);
+            $found_names = [];
+            $matched = false;
+            foreach ($names as $row) {
+                $found_names[] = $row['name'];
+                if ($this->normalizeCategoryName($row['name']) === $expected_norm) {
+                    $matched = true;
+                    break;
+                }
+            }
+
+            if (!$matched) {
+                $unique = array_values(array_unique($found_names));
+                $shown = array_slice($unique, 0, 4);
+                $mismatch_reason = 'category id=' . $current_id . ' does not translate to "'
+                    . $expected_segments[$i] . '" (found: '
+                    . (empty($shown) ? '<no translations>' : '"' . implode('", "', $shown) . '"')
+                    . (count($unique) > count($shown) ? ', ...' : '')
+                    . ')';
+                return false;
+            }
+
+            $parent_id = (int) Db::getInstance()->getValue(
+                'SELECT id_parent FROM ' . _DB_PREFIX_ . 'category WHERE id_category = ' . (int) $current_id
+            );
+            if ($parent_id === $current_id) {
+                if ($i === 0) {
+                    return true;
+                }
+                $mismatch_reason = 'category id=' . $current_id . ' self-parented at segment index ' . $i;
+                return false;
+            }
+            $current_id = $parent_id;
+        }
+        return true;
+    }
+
+    private function buildCategoryPathForDebug($id_category)
+    {
+        $segments = [];
+        $current_id = (int) $id_category;
+        $guard = 0;
+        while ($current_id > 1 && $guard < 50) {
+            $row = Db::getInstance()->getRow(
+                'SELECT c.id_parent,
+                        (SELECT cl.name FROM ' . _DB_PREFIX_ . 'category_lang cl
+                         WHERE cl.id_category = c.id_category ORDER BY cl.id_lang ASC LIMIT 1) AS name
+                 FROM ' . _DB_PREFIX_ . 'category c
+                 WHERE c.id_category = ' . (int) $current_id
+            );
+            if (!$row) {
+                break;
+            }
+            array_unshift($segments, (string) $row['name']);
+            $next = (int) $row['id_parent'];
+            if ($next === $current_id) {
+                break;
+            }
+            $current_id = $next;
+            $guard++;
+        }
+        return implode(' > ', $segments);
+    }
+
+    private function findCategoryByName($category_name)
+    {
+        // Look up an existing category by name across all languages. Returns
+        // the category id if found, false otherwise. Uses the same robust
+        // PHP-side normalization as findCategoryByPath so HTML entities,
+        // NBSP/unicode whitespace and case variants are all handled. Never
+        // creates a new category.
+        $candidates = $this->findCategoriesWithName($category_name);
+        if (empty($candidates)) {
+            return false;
+        }
+        if (count($candidates) === 1) {
+            return $candidates[0];
+        }
+        // Multiple categories share this name: prefer the shallowest for
+        // stability.
+        $best_id = $candidates[0];
+        $best_depth = PHP_INT_MAX;
+        foreach ($candidates as $cid) {
+            $depth = (int) Db::getInstance()->getValue(
+                'SELECT level_depth FROM ' . _DB_PREFIX_ . 'category WHERE id_category = ' . (int) $cid
+            );
+            if ($depth < $best_depth) {
+                $best_depth = $depth;
+                $best_id = $cid;
+            }
+        }
+        return $best_id;
     }
 
     private function clearProductCategories($id_product)

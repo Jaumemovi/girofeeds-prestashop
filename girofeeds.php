@@ -445,9 +445,11 @@ class Girofeeds extends Module
                     ],
                     [
                         'type' => 'select',
-                        'desc' => $this->l('Select order status to count orders per product in feed export (orders_1d, orders_7d, orders_30d, orders_90d, orders_365d).'),
-                        'name' => 'GIROFEEDS_ORDERS_COUNT_STATUS',
+                        'desc' => $this->l('Select one or more order statuses to count orders per product in feed export (orders_1d, orders_7d, orders_30d, orders_90d, orders_365d).'),
+                        'name' => 'GIROFEEDS_ORDERS_COUNT_STATUS[]',
                         'label' => $this->l('Order status for counting orders'),
+                        'multiple' => true,
+                        'class' => 'chosen',
                         'options' => [
                             'query' => $this->getOrderStatusesForSelect(),
                             'id' => 'id_order_state',
@@ -479,15 +481,36 @@ class Girofeeds extends Module
             'GIROFEEDS_DEFAULT_PAGE_SIZE' => Tools::getValue('GIROFEEDS_DEFAULT_PAGE_SIZE', Configuration::get('GIROFEEDS_DEFAULT_PAGE_SIZE')),
             'GIROFEEDS_USE_FEED_CACHE' => Tools::getValue('GIROFEEDS_USE_FEED_CACHE', Configuration::get('GIROFEEDS_USE_FEED_CACHE') == '1' ? 1 : 0),
             'GIROFEEDS_ENABLE_ORDERS_COUNT' => Tools::getValue('GIROFEEDS_ENABLE_ORDERS_COUNT', Configuration::get('GIROFEEDS_ENABLE_ORDERS_COUNT') == '1' ? 1 : 0),
-            'GIROFEEDS_ORDERS_COUNT_STATUS' => Tools::getValue('GIROFEEDS_ORDERS_COUNT_STATUS', Configuration::get('GIROFEEDS_ORDERS_COUNT_STATUS')),
+            'GIROFEEDS_ORDERS_COUNT_STATUS[]' => $this->getOrdersCountStatusFormValue(),
         ];
     }
 
     protected function getOrderStatusesForSelect()
     {
-        $orderStates = OrderState::getOrderStates((int) Configuration::get('PS_LANG_DEFAULT'));
-        array_unshift($orderStates, ['id_order_state' => 0, 'name' => '-- ' . $this->l('Select order status') . ' --']);
-        return $orderStates;
+        return OrderState::getOrderStates((int) Configuration::get('PS_LANG_DEFAULT'));
+    }
+
+    /**
+     * Returns the selected order statuses as an array of integer IDs,
+     * normalizing both submitted form values (array) and stored config (CSV string).
+     *
+     * @return array<int>
+     */
+    protected function getOrdersCountStatusFormValue()
+    {
+        $submitted = Tools::getValue('GIROFEEDS_ORDERS_COUNT_STATUS');
+        if ($submitted !== false && $submitted !== null && $submitted !== '') {
+            if (!is_array($submitted)) {
+                $submitted = explode(',', (string) $submitted);
+            }
+            return array_values(array_filter(array_map('intval', $submitted)));
+        }
+
+        $stored = Configuration::get('GIROFEEDS_ORDERS_COUNT_STATUS');
+        if ($stored === false || $stored === null || $stored === '') {
+            return [];
+        }
+        return array_values(array_filter(array_map('intval', explode(',', (string) $stored))));
     }
 
     /**
@@ -498,6 +521,11 @@ class Girofeeds extends Module
         $form_values = $this->getConfigFormValues();
 
         foreach (array_keys($form_values) as $key) {
+            if ($key === 'GIROFEEDS_ORDERS_COUNT_STATUS[]') {
+                $selected = $this->getOrdersCountStatusFormValue();
+                Configuration::updateValue('GIROFEEDS_ORDERS_COUNT_STATUS', implode(',', $selected));
+                continue;
+            }
             Configuration::updateValue($key, Tools::getValue($key));
         }
     }
