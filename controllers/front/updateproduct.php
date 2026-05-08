@@ -604,7 +604,7 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
         $id_shop = (int) $this->context->shop->id;
 
         $sql = 'UPDATE ' . _DB_PREFIX_ . 'product_shop
-                SET `' . pSQL($field) . '` = \'' . pSQL($validated_value) . '\'
+                SET `' . bqSQL($field) . '` = \'' . pSQL($validated_value) . '\'
                 WHERE id_product = ' . (int) $product->id . '
                 AND id_shop = ' . (int) $id_shop;
 
@@ -683,7 +683,7 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
         $id_shop = (int) $this->context->shop->id;
 
         $sql = 'UPDATE ' . _DB_PREFIX_ . 'product_lang
-                SET `' . pSQL($field) . '` = \'' . pSQL($value, true) . '\'
+                SET `' . bqSQL($field) . '` = \'' . pSQL($value, true) . '\'
                 WHERE id_product = ' . (int) $id_product . '
                 AND id_lang = ' . (int) $id_lang . '
                 AND id_shop = ' . (int) $id_shop;
@@ -708,7 +708,7 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
         }
 
         $sql = 'UPDATE ' . _DB_PREFIX_ . 'product_attribute
-                SET `' . pSQL($field) . '` = \'' . pSQL($validated_value) . '\'
+                SET `' . bqSQL($field) . '` = \'' . pSQL($validated_value) . '\'
                 WHERE id_product = ' . (int) $id_product . '
                 AND id_product_attribute = ' . (int) $id_product_attribute;
 
@@ -764,7 +764,7 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
         }
 
         $sql = 'UPDATE ' . _DB_PREFIX_ . 'product_attribute
-                SET `' . pSQL($field) . '` = \'' . pSQL($validated_value) . '\'
+                SET `' . bqSQL($field) . '` = \'' . pSQL($validated_value) . '\'
                 WHERE id_product = ' . (int) $id_product;
 
         if (Db::getInstance()->execute($sql)) {
@@ -797,7 +797,7 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
         $id_shop = (int) $this->context->shop->id;
 
         $sql = 'UPDATE ' . _DB_PREFIX_ . 'product_attribute_shop
-                SET `' . pSQL($field) . '` = \'' . pSQL($validated_value) . '\'
+                SET `' . bqSQL($field) . '` = \'' . pSQL($validated_value) . '\'
                 WHERE id_product_attribute = ' . (int) $id_product_attribute . '
                 AND id_shop = ' . (int) $id_shop;
 
@@ -862,7 +862,7 @@ class GirofeedsUpdateproductModuleFrontController extends ModuleFrontController
         if ($attributes) {
             $ids = array_column($attributes, 'id_product_attribute');
             $sql = 'UPDATE ' . _DB_PREFIX_ . 'product_attribute_shop
-                    SET `' . pSQL($field) . '` = \'' . pSQL($validated_value) . '\'
+                    SET `' . bqSQL($field) . '` = \'' . pSQL($validated_value) . '\'
                     WHERE id_product_attribute IN (' . implode(',', array_map('intval', $ids)) . ')
                     AND id_shop = ' . (int) $id_shop;
 

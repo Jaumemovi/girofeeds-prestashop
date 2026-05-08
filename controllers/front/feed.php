@@ -998,7 +998,7 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
         if (is_array($feedfields)) {
             foreach ($feedfields as $ff) {
                 if ($ff['tablename'] != 'specific_price' && $ff['tablename'] != 'orders') {
-                    $ret .= '`' . $this->getTableShort($ff['tablename']) . '`.`' . pSQL($ff['field_in_db']) . '` AS `' . pSQL($ff['field_in_feed']) . '`, ';
+                    $ret .= '`' . $this->getTableShort($ff['tablename']) . '`.`' . bqSQL($ff['field_in_db']) . '` AS `' . bqSQL($ff['field_in_feed']) . '`, ';
                 }
             }
         }
@@ -1014,7 +1014,7 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
         if (is_array($feedfields)) {
             foreach ($feedfields as $ff) {
                 if ($ff['tablename'] == 'specific_price') {
-                    $tmpSpecificPriceFields[] = '`' . $this->getTableShort($ff['tablename']) . '`.`' . pSQL($ff['field_in_db']) . '` AS `' . pSQL($ff['field_in_feed']) . '`';
+                    $tmpSpecificPriceFields[] = '`' . $this->getTableShort($ff['tablename']) . '`.`' . bqSQL($ff['field_in_db']) . '` AS `' . bqSQL($ff['field_in_feed']) . '`';
                 }
             }
             if (sizeof($tmpSpecificPriceFields) > 0) {
