@@ -154,7 +154,7 @@ class GirofeedsFeedfield extends ObjectModel
                     'orders_365d',
                 ];
             } else {
-                $sql = 'SHOW COLUMNS FROM `' . _DB_PREFIX_ . pSQL($tablename) . '`';
+                $sql = 'SHOW COLUMNS FROM `' . _DB_PREFIX_ . bqSQL($tablename) . '`';
                 if ($results = Db::getInstance()->executeS($sql)) {
                     foreach ($results as $row) {
                         $fields[$tablename][] = $row['Field'];
