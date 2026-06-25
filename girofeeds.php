@@ -198,6 +198,7 @@ class Girofeeds extends Module
         $this->context->smarty->assign('product_api_url', $this->context->link->getModuleLink('girofeeds', 'product', ['key' => $webservice->key, 'id_product' => 'XX_PRODUCT_ID_XX']));
         $this->context->smarty->assign('product_cache_cron_url', $this->context->link->getModuleLink('girofeeds', 'cron', ['buildProductsJson' => '1']));
         $this->context->smarty->assign('girofeeds_key', $webservice->key);
+        $this->context->smarty->assign('girofeeds_lead_capture_url', 'https://girofeeds.com/registro?utm_source=prestashop&utm_medium=addons&utm_campaign=module');
         $this->context->smarty->assign('lang_id', $this->context->language->id);
         $this->context->smarty->assign('form_url', $this->context->link->getAdminLink('AdminModules', false) . '&configure=' . $this->name . '&tab_module=' . $this->tab . '&module_name=' . $this->name . '&token=' . Tools::getAdminTokenLite('AdminModules'));
         $this->context->smarty->assign('feedfields_available', GirofeedsFeedfield::getAvailableFieldsFiltered());

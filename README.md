@@ -75,6 +75,8 @@ Girofeeds is especially useful for marketing agencies, SEM specialists, ecommerc
 ### 1) Module configuration in PrestaShop
 
 Install and configure the Girofeeds addon in your PrestaShop back office.
+If you are new to Girofeeds, start free and request a free Google Merchant Center audit:
+https://girofeeds.com/registro?utm_source=prestashop&utm_medium=addons&utm_campaign=module
 
 ![Step 1 - PrestaShop module config](01-prestashop-config.jpg)
 
@@ -88,6 +90,8 @@ In the PrestaShop module configuration, copy the API key and endpoint URLs:
 - Product Info URL
 
 Then configure these values in your Girofeeds account.
+You can create or request access here:
+https://girofeeds.com/registro?utm_source=prestashop&utm_medium=addons&utm_campaign=module
 
 ![Step 2 - API key and endpoints](03-prestashop-api-key.jpg)
 
