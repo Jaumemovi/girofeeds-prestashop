@@ -34,8 +34,8 @@ class Girofeeds extends Module
 
         parent::__construct();
 
-        $this->displayName = $this->l('Girofeeds');
-        $this->description = $this->l('Girofeeds feed management module for PrestaShop');
+        $this->displayName = $this->l('Girofeeds - AI Catalog Optimization, Google Shopping Feeds & Sync');
+        $this->description = $this->l('Connect PrestaShop to Girofeeds and optimize your catalog with AI/Gemini: fix Google Merchant Center rejections, rewrite titles and descriptions, sync stock and orders, and export multichannel feeds automatically and bidirectionally.');
 
         $this->confirmUninstall = $this->l('Are you sure to uninstall this module?');
 

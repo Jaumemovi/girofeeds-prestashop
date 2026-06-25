@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <module>
     <name>girofeeds</name>
-    <displayName><![CDATA[Girofeeds]]></displayName>
-    <version><![CDATA[3.3.23]]></version>
-    <description><![CDATA[Girofeeds feed management module for PrestaShop]]></description>
+    <displayName><![CDATA[Girofeeds - Optimizacion de catalogo con IA, feeds Google Shopping y sincronizacion]]></displayName>
+    <version><![CDATA[3.3.25]]></version>
+    <description><![CDATA[Conecta PrestaShop con Girofeeds y optimiza tu catalogo con IA/Gemini: corrige rechazos de Google Merchant Center, reescribe titulos y descripciones, sincroniza stock y pedidos y exporta feeds multicanal de forma automatica y bidireccional.]]></description>
     <author><![CDATA[Moviendote]]></author>
     <tab><![CDATA[market_place]]></tab>
 	<confirmUninstall><![CDATA[Are you sure to uninstall this module?]]></confirmUninstall>
