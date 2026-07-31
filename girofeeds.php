@@ -13,6 +13,8 @@ if (!defined('_PS_VERSION_')) {
 
 class Girofeeds extends Module
 {
+    const LEAD_CAPTURE_URL = 'https://girofeeds.com/registro?utm_source=prestashop&utm_medium=addons&utm_campaign=module';
+
     protected $config_form = false;
     protected $this_file = __FILE__;
     protected static $sent_update_ids = [];
@@ -122,12 +124,18 @@ class Girofeeds extends Module
         SELECT id_product, 0, NOW() FROM `' . _DB_PREFIX_ . 'product`
     ');
 
-        return parent::install()
+        $installed = parent::install()
             && $this->registerHook('actionUpdateQuantity')
             && $this->registerHook('actionProductUpdate')
             && $this->registerHook('actionProductAdd')
             && $this->registerHook('actionProductAttributeUpdate')
             && $this->registerHook('displayBackOfficeHeader');
+
+        if ($installed) {
+            $this->addInstallLeadCaptureConfirmation();
+        }
+
+        return $installed;
     }
 
     /**
@@ -198,6 +206,7 @@ class Girofeeds extends Module
         $this->context->smarty->assign('product_api_url', $this->context->link->getModuleLink('girofeeds', 'product', ['key' => $webservice->key, 'id_product' => 'XX_PRODUCT_ID_XX']));
         $this->context->smarty->assign('product_cache_cron_url', $this->context->link->getModuleLink('girofeeds', 'cron', ['buildProductsJson' => '1']));
         $this->context->smarty->assign('girofeeds_key', $webservice->key);
+        $this->context->smarty->assign('girofeeds_lead_capture_url', self::LEAD_CAPTURE_URL);
         $this->context->smarty->assign('lang_id', $this->context->language->id);
         $this->context->smarty->assign('form_url', $this->context->link->getAdminLink('AdminModules', false) . '&configure=' . $this->name . '&tab_module=' . $this->tab . '&module_name=' . $this->name . '&token=' . Tools::getAdminTokenLite('AdminModules'));
         $this->context->smarty->assign('feedfields_available', GirofeedsFeedfield::getAvailableFieldsFiltered());
@@ -245,6 +254,24 @@ class Girofeeds extends Module
         ];
 
         return $helper->generateForm([$this->getConfigForm()]);
+    }
+
+    /**
+     * Show a lead-capture CTA in the back-office install confirmation.
+     */
+    protected function addInstallLeadCaptureConfirmation()
+    {
+        if (!isset($this->context->controller->confirmations) || !is_array($this->context->controller->confirmations)) {
+            return;
+        }
+
+        $url = self::LEAD_CAPTURE_URL;
+        $this->context->controller->confirmations[] = sprintf(
+            '%s <a href="%s" target="_blank" rel="noopener noreferrer">%s</a>',
+            $this->l('Girofeeds is installed. Create your Girofeeds account or request a free Google Merchant Center audit to turn this installation into optimized AI feeds, stock sync and bidirectional catalog improvements:'),
+            $url,
+            $url
+        );
     }
 
     /**

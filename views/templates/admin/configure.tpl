@@ -21,6 +21,14 @@
 	<p>
 		{l s='Girofeeds offers a cloud-based datafeed management tool, which makes online advertisement much easier for online retailers and marketing agencies. Within the tool you can set up clever rules in order to create optimized product feeds and/or connect with the APIs of several platforms, such as Amazon or Admarkt. Free technical support is included.' mod='girofeeds'}
 	</p>
+	<p>
+		{l s='New to Girofeeds? Start free and request a free Google Merchant Center audit to turn this PrestaShop connection into optimized AI feeds, stock sync and bidirectional catalog improvements.' mod='girofeeds'}
+	</p>
+	<p>
+		<a class="btn btn-primary" href="{$girofeeds_lead_capture_url|escape:'html':'UTF-8'}" target="_blank" rel="noopener noreferrer">
+			{l s='Start free / request audit' mod='girofeeds'}
+		</a>
+	</p>
 	<div class="girofeeds_clear"></div>
 	<h3>{l s='SEND YOUR PRESTASHOP ARTICLES TO MORE THAN 100 PRICE COMPARISON WEBSITES, AFFILIATES OR MARKETPLACES.' mod='girofeeds'}</h3>
 	<p>
