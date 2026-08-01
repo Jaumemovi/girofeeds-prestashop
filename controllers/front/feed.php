@@ -995,10 +995,33 @@ class GirofeedsFeedModuleFrontController extends ModuleFrontController
     {
         $feedfields = GirofeedsFeedfield::getAllFeedfields();
         $ret = '';
+        $productColumns = null;
         if (is_array($feedfields)) {
             foreach ($feedfields as $ff) {
                 if ($ff['tablename'] != 'specific_price' && $ff['tablename'] != 'orders') {
-                    $ret .= '`' . $this->getTableShort($ff['tablename']) . '`.`' . bqSQL($ff['field_in_db']) . '` AS `' . bqSQL($ff['field_in_feed']) . '`, ';
+                    $expr = '`' . $this->getTableShort($ff['tablename']) . '`.`' . bqSQL($ff['field_in_db']) . '`';
+                    // For rows without a combination the attribute tables carry no
+                    // meaningful value (the LEFT JOINs leave them NULL or matched to
+                    // an arbitrary row), so a field mapped on product_attribute[_shop]
+                    // (e.g. wholesale_price) exported NULL/0 for every simple
+                    // product. Use the product-level column for simple rows when one
+                    // with the same name exists — same pattern as the standard
+                    // ean13/reference fields.
+                    if ($ff['tablename'] == 'product_attribute' || $ff['tablename'] == 'product_attribute_shop') {
+                        if ($productColumns === null) {
+                            $productColumns = [];
+                            $cols = Db::getInstance()->executeS('SHOW COLUMNS FROM `' . _DB_PREFIX_ . 'product`');
+                            if (is_array($cols)) {
+                                foreach ($cols as $col) {
+                                    $productColumns[] = $col['Field'];
+                                }
+                            }
+                        }
+                        if (in_array($ff['field_in_db'], $productColumns)) {
+                            $expr = 'IF(`pa`.`id_product_attribute` IS NULL, `p`.`' . bqSQL($ff['field_in_db']) . '`, ' . $expr . ')';
+                        }
+                    }
+                    $ret .= $expr . ' AS `' . bqSQL($ff['field_in_feed']) . '`, ';
                 }
             }
         }
